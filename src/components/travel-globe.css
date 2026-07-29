@@ -1,0 +1,269 @@
+/* =========================================================
+   TRAVA AI — FULL INTERACTIVE TRAVEL GLOBE
+========================================================= */
+
+.premium-globe-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 340px;
+  overflow: hidden;
+}
+
+.premium-globe-wrap:fullscreen {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at center, #d9e7ff, #e9e4ff 55%, #f9dfed);
+}
+
+.premium-globe-wrap canvas {
+  display: block;
+  margin: auto;
+}
+
+.premium-globe-glow {
+  position: absolute;
+  inset: 12% 15% 4%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.55), rgba(126,154,255,.18) 48%, transparent 72%);
+  filter: blur(20px);
+  pointer-events: none;
+}
+
+.globe-control-stack {
+  position: absolute;
+  z-index: 12;
+  top: 72px;
+  right: 16px;
+  display: grid;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.9);
+  border-radius: 19px;
+  background: rgba(255,255,255,.82);
+  box-shadow: 0 12px 28px rgba(65,72,115,.13);
+  backdrop-filter: blur(14px);
+}
+
+.globe-control-stack button {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  color: #243454;
+}
+
+.globe-control-stack button:not(:last-child) {
+  border-bottom: 1px solid #e5e8ef;
+}
+
+.globe-add-country-button {
+  position: absolute;
+  z-index: 12;
+  top: 14px;
+  right: 14px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 13px;
+  border: 1px solid rgba(255,255,255,.9);
+  border-radius: 999px;
+  color: #503bc8;
+  background: rgba(255,255,255,.84);
+  box-shadow: 0 10px 24px rgba(69,73,128,.13);
+  backdrop-filter: blur(14px);
+  font-size: .7rem;
+  font-weight: 900;
+}
+
+.visited-country-strip {
+  position: absolute;
+  z-index: 10;
+  left: 14px;
+  right: 82px;
+  bottom: 8px;
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 4px 2px 7px;
+  scrollbar-width: none;
+}
+
+.visited-country-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.visited-country-strip button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 0 6px;
+  border-radius: 999px;
+  color: #28344e;
+  background: rgba(255,255,255,.82);
+  box-shadow: 0 8px 18px rgba(63,73,119,.1);
+  font-size: .65rem;
+  font-weight: 800;
+}
+
+.visited-country-strip span {
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg,#7c5cff,#ff4fa3);
+  font-size: .61rem;
+}
+
+.globe-country-modal-backdrop {
+  position: fixed;
+  z-index: 10050;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(20,28,49,.44);
+  backdrop-filter: blur(9px);
+}
+
+.globe-country-modal {
+  width: min(470px,100%);
+  max-height: min(85vh,690px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid rgba(255,255,255,.92);
+  border-radius: 25px;
+  background: #fff;
+  box-shadow: 0 30px 90px rgba(26,36,69,.3);
+}
+
+.globe-country-modal header,
+.globe-country-modal footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.globe-country-modal header span {
+  color: #7d8ba7;
+  font-size: .64rem;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.globe-country-modal h3 {
+  margin: 3px 0 0;
+}
+
+.globe-country-modal header button {
+  width: 39px;
+  height: 39px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #f2f5fa;
+}
+
+.globe-country-modal > label {
+  display: grid;
+  gap: 7px;
+  margin: 19px 0 14px;
+  font-size: .75rem;
+  font-weight: 850;
+}
+
+.globe-country-modal select {
+  min-height: 47px;
+  padding: 0 12px;
+  border: 1px solid #dfe5ef;
+  border-radius: 13px;
+}
+
+.globe-visited-list {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 18px;
+}
+
+.globe-visited-list > span {
+  color: #7d889e;
+  font-size: .7rem;
+  font-weight: 850;
+}
+
+.globe-visited-list article {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 11px;
+  border: 1px solid #e4e9f2;
+  border-radius: 13px;
+  background: #f8faff;
+}
+
+.globe-visited-list article button:first-child {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-align: left;
+}
+
+.globe-visited-list article button:last-child {
+  width: 33px;
+  height: 33px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #d14d68;
+  background: #fff0f3;
+}
+
+.globe-country-modal footer {
+  justify-content: flex-end;
+}
+
+.globe-country-modal footer button {
+  min-height: 43px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 15px;
+  border-radius: 12px;
+  font-weight: 850;
+}
+
+.globe-country-modal footer button:first-child {
+  border: 1px solid #dce3ee;
+}
+
+.globe-country-modal footer button:last-child {
+  color: #fff;
+  background: linear-gradient(135deg,#7c5cff,#ff4fa3);
+}
+
+@media (max-width: 600px) {
+  .globe-control-stack {
+    top: 63px;
+    right: 8px;
+  }
+
+  .globe-control-stack button {
+    width: 42px;
+    height: 42px;
+  }
+
+  .globe-add-country-button {
+    top: 8px;
+    right: 8px;
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: .64rem;
+  }
+}

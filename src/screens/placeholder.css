@@ -1,0 +1,17 @@
+.placeholder-screen {
+  display: grid;
+  place-content: center;
+  text-align: center;
+  padding-bottom: 130px;
+}
+
+.placeholder-screen h1 {
+  font-size: 34px;
+  letter-spacing: -1.2px;
+}
+
+.placeholder-screen p {
+  margin-top: 8px;
+  color: #667085;
+  font-size: 15px;
+}

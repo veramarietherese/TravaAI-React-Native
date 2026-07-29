@@ -1,0 +1,41 @@
+.status-bar {
+  height: 58px;
+  padding: 20px 32px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 19px;
+  color: #05070c;
+}
+
+.status-icons {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.signal {
+  letter-spacing: -4px;
+  transform: rotate(180deg);
+}
+
+.battery {
+  width: 28px;
+  height: 15px;
+  border: 2px solid #05070c;
+  border-radius: 4px;
+  position: relative;
+}
+
+.battery::after {
+  content: "";
+  width: 3px;
+  height: 7px;
+  background: #05070c;
+  border-radius: 0 2px 2px 0;
+  position: absolte;
+  right: -6px;
+  top: 2px;
+}

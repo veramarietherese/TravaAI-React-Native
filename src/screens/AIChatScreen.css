@@ -1,0 +1,763 @@
+/* =========================================================
+   TRAVA AI — AI ASSISTANT SCREEN
+   Matches the supplied premium lavender mobile reference.
+========================================================= */
+.trava-ai-screen {
+  --ai-purple: #7257ed;
+  --ai-purple-dark: #5d46dc;
+  --ai-pink: #f15ca1;
+  --ai-ink: #17223d;
+  --ai-muted: #7b879e;
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--ai-ink);
+  background:
+    radial-gradient(
+      circle at 83% 6%,
+      rgba(249, 211, 239, 0.7),
+      transparent 27%
+    ),
+    radial-gradient(
+      circle at 12% 4%,
+      rgba(215, 229, 255, 0.8),
+      transparent 31%
+    ),
+    linear-gradient(180deg, #fbfbff 0%, #f6f7ff 52%, #fff9fd 100%);
+}
+
+.trava-ai-screen button,
+.trava-ai-screen textarea {
+  font: inherit;
+}
+
+.trava-ai-screen button {
+  border: 0;
+  cursor: pointer;
+}
+
+.trava-ai-header {
+  position: relative;
+  z-index: 30;
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px clamp(18px, 4vw, 34px) 13px;
+  border-bottom: 1px solid rgba(220, 224, 239, 0.68);
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 9px 28px rgba(61, 72, 117, 0.06);
+  backdrop-filter: blur(22px);
+}
+
+.trava-ai-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.trava-ai-brand-icon {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  color: #fff;
+  background: linear-gradient(145deg, #835ef3, #e95da9);
+  box-shadow:
+    0 10px 23px rgba(111, 78, 225, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.trava-ai-brand h1,
+.trava-ai-brand p {
+  margin: 0;
+}
+
+.trava-ai-brand h1 {
+  font-size: clamp(1.2rem, 4vw, 1.56rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  background: linear-gradient(90deg, #7355ef, #ea5ca9);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.trava-ai-brand p {
+  margin-top: 5px;
+  color: #68758f;
+  font-size: 0.7rem;
+}
+
+.trava-ai-header-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.trava-ai-menu-button,
+.trava-ai-header-secondary {
+  width: 41px;
+  height: 41px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(223, 226, 238, 0.95);
+  border-radius: 50%;
+  color: #5f6b83;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 8px 18px rgba(44, 55, 88, 0.08);
+}
+
+.trava-ai-menu {
+  position: absolute;
+  z-index: 80;
+  top: 49px;
+  right: 0;
+  width: 190px;
+  overflow: hidden;
+  padding: 6px;
+  border: 1px solid rgba(225, 228, 239, 0.98);
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 22px 54px rgba(36, 46, 77, 0.2);
+}
+
+.trava-ai-menu button {
+  width: 100%;
+  min-height: 41px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border-radius: 10px;
+  color: #d94e70;
+  background: #fff5f7;
+  font-size: 0.73rem;
+  font-weight: 800;
+}
+
+.trava-ai-conversation {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 99, 224, 0.3) transparent;
+}
+
+.trava-ai-chat-column {
+  width: min(100%, 780px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 22px clamp(16px, 4vw, 28px) 32px;
+}
+
+.trava-ai-message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+  margin-bottom: 17px;
+}
+
+.trava-ai-message-row.user {
+  justify-content: flex-end;
+}
+
+.trava-ai-bot-avatar {
+  position: relative;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(145deg, #253e89, #7a5bef 67%, #f067ae);
+  box-shadow:
+    0 8px 18px rgba(65, 54, 158, 0.23),
+    0 0 0 1px rgba(102, 79, 218, 0.12);
+}
+
+.trava-ai-bot-avatar i {
+  position: absolute;
+  right: -1px;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #39d68c;
+}
+
+.trava-ai-message-group {
+  max-width: min(78%, 545px);
+}
+
+.trava-ai-message-bubble {
+  padding: 13px 15px;
+  border: 1px solid rgba(226, 229, 239, 0.92);
+  border-radius: 17px 17px 17px 5px;
+  color: #253047;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 10px 26px rgba(43, 55, 91, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  font-size: clamp(0.78rem, 2.5vw, 0.9rem);
+  line-height: 1.48;
+}
+
+.trava-ai-message-row.user .trava-ai-message-bubble {
+  border: 0;
+  border-radius: 17px 17px 5px 17px;
+  color: #fff;
+  background: linear-gradient(135deg, #7760ee 0%, #6448df 100%);
+  box-shadow:
+    0 13px 27px rgba(99, 73, 222, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.trava-ai-message-bubble.error {
+  color: #a53e59;
+  background: #fff2f5;
+}
+
+.trava-ai-message-bubble p {
+  margin: 0;
+}
+
+.trava-ai-message-bubble p + p {
+  margin-top: 9px;
+}
+
+.trava-ai-message-group time {
+  display: block;
+  margin: 5px 6px 0;
+  color: #9aa4b7;
+  font-size: 0.58rem;
+}
+
+.trava-ai-message-row.user time {
+  text-align: right;
+}
+
+.trava-ai-thinking {
+  min-width: 74px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 17px 18px;
+}
+
+.trava-ai-thinking span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #846bed;
+  animation: trava-ai-bounce 1.15s infinite ease-in-out;
+}
+
+.trava-ai-thinking span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.trava-ai-thinking span:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes trava-ai-bounce {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+
+  35% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+.trava-ai-card-track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(148px, 31%);
+  gap: 10px;
+  overflow-x: auto;
+  margin: 3px 0 24px 47px;
+  padding: 2px 2px 10px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.trava-ai-card-track::-webkit-scrollbar {
+  display: none;
+}
+
+.trava-ai-destination-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(222, 225, 237, 0.94) !important;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 11px 26px rgba(42, 55, 92, 0.1);
+  scroll-snap-align: start;
+  text-align: left;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.trava-ai-destination-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 32px rgba(51, 60, 102, 0.14);
+}
+
+.trava-ai-destination-image {
+  position: relative;
+  height: 118px;
+  overflow: hidden;
+}
+
+.trava-ai-destination-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.trava-ai-destination-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(15, 21, 43, 0.28));
+}
+
+.trava-ai-destination-image span {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  left: 8px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(239, 88, 159, 0.9);
+  box-shadow: 0 5px 12px rgba(92, 43, 86, 0.2);
+  font-size: 0.52rem;
+  font-weight: 900;
+}
+
+.trava-ai-destination-copy {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+}
+
+.trava-ai-destination-copy strong {
+  overflow: hidden;
+  color: #1c2842;
+  font-size: 0.74rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trava-ai-destination-copy span,
+.trava-ai-destination-copy small {
+  color: #7a869c;
+  font-size: 0.58rem;
+}
+
+.trava-ai-destination-copy small {
+  margin-top: 2px;
+  color: #7359e3;
+  font-weight: 850;
+}
+
+.trava-ai-prompt-section {
+  margin: 0 0 5px 47px;
+}
+
+.trava-ai-prompt-section > strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #4f5b72;
+  font-size: 0.68rem;
+}
+
+.trava-ai-prompt-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trava-ai-prompt-grid button {
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid rgba(218, 221, 235, 0.95);
+  border-radius: 12px;
+  color: #58647b;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 7px 16px rgba(51, 61, 95, 0.06);
+  font-size: 0.65rem;
+  font-weight: 750;
+}
+
+.trava-ai-prompt-grid button:hover {
+  border-color: #c8bbff;
+  color: #674ce1;
+  background: #f7f4ff;
+}
+
+.trava-ai-composer-area {
+  position: relative;
+  z-index: 35;
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 10px clamp(14px, 4vw, 24px) calc(89px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(221, 224, 237, 0.68);
+  background: linear-gradient(
+    180deg,
+    rgba(252, 252, 255, 0.75),
+    rgba(250, 249, 255, 0.98)
+  );
+  backdrop-filter: blur(22px);
+}
+
+.trava-ai-composer,
+.trava-ai-notice,
+.trava-ai-disclaimer {
+  width: min(100%, 780px);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.trava-ai-composer {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  padding: 6px 7px 6px 9px;
+  border: 1px solid rgba(219, 223, 235, 0.96);
+  border-radius: 19px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 15px 35px rgba(54, 62, 101, 0.13),
+    inset 0 1px 0 #fff;
+}
+
+.trava-ai-composer textarea {
+  width: 100%;
+  min-height: 40px;
+  max-height: 110px;
+  padding: 10px 4px 7px;
+  border: 0;
+  outline: 0;
+  resize: none;
+  color: #27334b;
+  background: transparent;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.trava-ai-composer textarea::placeholder {
+  color: #a0a8b9;
+}
+
+.trava-ai-mic-button,
+.trava-ai-send-button {
+  width: 41px;
+  height: 41px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.trava-ai-mic-button {
+  color: #78849a;
+  background: #f2f4f9;
+}
+
+.trava-ai-mic-button.active {
+  color: #fff;
+  background: #ed5c8f;
+  animation: trava-ai-pulse 1.2s infinite;
+}
+
+@keyframes trava-ai-pulse {
+  50% {
+    box-shadow: 0 0 0 8px rgba(237, 92, 143, 0.14);
+  }
+}
+
+.trava-ai-send-button {
+  color: #fff;
+  background: linear-gradient(145deg, #8064f1, #6247dd);
+  box-shadow:
+    0 10px 20px rgba(102, 75, 222, 0.29),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.trava-ai-send-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+  box-shadow: none;
+}
+
+.trava-ai-notice {
+  margin-bottom: 7px;
+  padding: 8px 11px;
+  border: 1px solid #e1ddfb;
+  border-radius: 10px;
+  color: #6651c8;
+  background: #f7f5ff;
+  font-size: 0.62rem;
+}
+
+.trava-ai-disclaimer {
+  margin-top: 7px;
+  color: #9aa3b4;
+  font-size: 0.54rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+@media (min-width: 900px) {
+  .trava-ai-screen {
+    min-height: 760px;
+  }
+
+  .trava-ai-card-track {
+    grid-auto-columns: minmax(170px, 30%);
+  }
+
+  .trava-ai-destination-image {
+    height: 140px;
+  }
+}
+
+@media (max-width: 520px) {
+  .trava-ai-header {
+    min-height: 76px;
+    padding: 13px 14px 10px;
+  }
+
+  .trava-ai-brand-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 13px;
+  }
+
+  .trava-ai-header-secondary {
+    display: none;
+  }
+
+  .trava-ai-chat-column {
+    padding: 17px 13px 23px;
+  }
+
+  .trava-ai-message-group {
+    max-width: 82%;
+  }
+
+  .trava-ai-card-track,
+  .trava-ai-prompt-section {
+    margin-left: 45px;
+  }
+
+  .trava-ai-card-track {
+    grid-auto-columns: 72%;
+  }
+
+  .trava-ai-composer-area {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+}
+
+.trava-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;        
+  justify-content: center;    
+  padding: 24px;
+}
+
+.trava-modal {
+  width: 100%;
+  max-width: 420px;    /* ← was 360px */
+  background: #fff;
+  border-radius: 24px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
+  animation: popIn 0.2s ease;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.92); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+.trava-modal-header h2 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.trava-modal-header p {
+  font-size: 13px;
+  color: #888;
+}
+
+.trava-modal-editor {
+  width: 100%;
+  padding: 14px 16px;        
+  border-radius: 14px;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 2.0;           
+  letter-spacing: 0.01em;    
+  color: #1a1a2e;
+  resize: none;
+  background: #f9f9fb;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.trava-modal-editor:focus {
+  border-color: #c084fc;
+}
+
+.trava-modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.trava-modal-cancel {
+  flex: 1;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+
+.trava-modal-confirm {
+  flex: 2;
+  padding: 12px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #c084fc, #ec4899);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trava-modal-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Create or edit pop up */
+.trava-modal-cancel:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.trava-modal-cancel:active {
+  transform: scale(0.98);
+}
+
+.trava-modal-confirm,
+.btn-create-trip {
+  flex: 2;
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #c084fc, #ec4899);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(236, 72, 153, 0.25);
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+
+.trava-modal-confirm:hover,
+.btn-create-trip:hover {
+  opacity: 0.92;
+}
+
+.trava-modal-confirm:active,
+.btn-create-trip:active {
+  transform: scale(0.98);
+}
+
+.trava-modal-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-update-trip {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(192, 132, 252, 0.45);
+  background: #f5f0ff;
+  color: #7e22ce;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-update-trip:hover {
+  background: #ede4ff;
+  border-color: rgba(192, 132, 252, 0.75);
+}
+
+.btn-update-trip:active {
+  transform: scale(0.98);
+}
+
+.trava-modal-choice-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+
+.trava-modal-cancel-full {
+  width: 100%;
+}

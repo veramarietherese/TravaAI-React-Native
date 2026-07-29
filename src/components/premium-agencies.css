@@ -1,0 +1,114 @@
+.premium-agency-carousel {
+  margin-top: 16px;
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 0 2px 12px 0;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.premium-agency-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.premium-agency-card {
+  flex: 0 0 245px;
+  border-radius: 28px;
+  overflow: hidden;
+  scroll-snap-align: start;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(238, 232, 225, 0.95);
+  box-shadow: 0 18px 42px rgba(25, 22, 18, 0.11);
+}
+
+.agency-cover {
+  height: 92px;
+  position: relative;
+  background-size: cover;
+  background-position: center;
+}
+
+.japan-cover {
+  background-image:
+    linear-gradient(to top, rgba(5, 8, 18, 0.45), transparent),
+    url("https://images.unsplash.com/photo-1528360983277-13d401cdc186?q=80&w=900&auto=format&fit=crop");
+}
+
+.dubai-cover {
+  background-image:
+    linear-gradient(to top, rgba(5, 8, 18, 0.45), transparent),
+    url("https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=900&auto=format&fit=crop");
+}
+
+.agency-cover span {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #111827;
+  font-size: 11px;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(14px);
+}
+
+.premium-agency-body {
+  position: relative;
+  padding: 0 15px 15px;
+}
+
+.premium-agency-logo {
+  width: 52px;
+  height: 52px;
+  margin-top: -26px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 25px;
+  background: white;
+  border: 4px solid white;
+  box-shadow: 0 12px 22px rgba(18, 22, 32, 0.14);
+}
+
+.premium-agency-body h3 {
+  margin-top: 10px;
+  font-size: 18px;
+  letter-spacing: -0.5px;
+}
+
+.premium-agency-body p {
+  margin-top: 5px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.agency-stats {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.agency-stats span {
+  padding: 6px 8px;
+  border-radius: 999px;
+  color: #475467;
+  font-size: 10px;
+  font-weight: 800;
+  background: #f7f7fb;
+}
+
+.premium-agency-body button {
+  margin-top: 14px;
+  width: 100%;
+  height: 40px;
+  border-radius: 15px;
+  color: white;
+  font-size: 13px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ff5b98, #7b2dff);
+  box-shadow: 0 12px 22px rgba(123, 45, 255, 0.2);
+}

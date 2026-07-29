@@ -1,0 +1,158 @@
+/* src/components/ChatWindow.css */
+
+.chat-window-container {
+  display: flex;
+  flex-direction: column;
+  height: 90%;
+  background-color: #f2f2f7; /* Matches the clean, platform-native background layer */
+}
+
+/* Header with back button */
+.chat-header {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e5ea;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  font-size: 15px;
+  font-weight: 500;
+  color: #007aff; /* Interactive platform UI blue tint */
+  cursor: pointer;
+  margin-right: 12px;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+}
+
+.back-btn:hover {
+  opacity: 0.7;
+}
+
+.chat-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* Message Stream area */
+.messages-stream {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.system-note {
+  text-align: center;
+  color: #8e8e93;
+  font-size: 12px;
+  margin: 4px 0;
+}
+
+/* Structural message alignment wrappers */
+.message-bubble-wrapper {
+  display: flex;
+  width: 100%;
+}
+
+/* Snap outgoing messages (me) to the right */
+.message-bubble-wrapper.me {
+  justify-content: flex-end;
+}
+
+/* Snap incoming messages (them) to the left */
+.message-bubble-wrapper.them {
+  justify-content: flex-start;
+}
+
+.message-bubble {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+/* Outgoing Blue bubbles */
+.me .message-bubble {
+  background-color: #007aff;
+  color: #ffffff;
+  border-bottom-right-radius: 4px; /* Distinct styling corner chat aesthetic */
+}
+
+/* Incoming White bubbles */
+.them .message-bubble {
+  background-color: #ffffff;
+  color: #1a1a1a;
+  border-bottom-left-radius: 4px;
+}
+
+.message-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.message-timestamp {
+  display: block;
+  font-size: 10px;
+  margin-top: 4px;
+  text-align: right;
+  opacity: 0.65;
+}
+
+.them .message-timestamp {
+  color: #8e8e93;
+}
+
+/* Input section footer form */
+.chat-footer {
+  display: flex;
+  padding: 12px 16px;
+  background-color: #ffffff;
+  border-top: 1px solid #e5e5ea;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-footer input {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid #d1d1d6;
+  border-radius: 20px;
+  font-size: 14px;
+  outline: none;
+  background-color: #f2f2f7;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.chat-footer input:focus {
+  border-color: #007aff;
+  background-color: #ffffff;
+}
+
+.chat-footer button {
+  background-color: #007aff;
+  color: #ffffff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.chat-footer button:hover {
+  background-color: #0062cc;
+}

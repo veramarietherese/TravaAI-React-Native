@@ -1,0 +1,55 @@
+.agency-section {
+  margin-top: 18px;
+  padding-bottom: 8px;
+}
+
+.agency-section h2 {
+  font-size: 27px;
+  letter-spacing: -0.9px;
+}
+
+.agency-section > p {
+  margin-top: 5px;
+  font-size: 23px;
+  line-height: 1.15;
+  color: #111827;
+}
+
+.smart-match-card {
+  margin-top: 34px;
+  min-height: 220px;
+  border-radius: 24px;
+  padding: 30px;
+  background:
+    linear-gradient(145deg, rgba(255,255,255,0.92), rgba(246, 250, 255, 0.72)),
+    radial-gradient(circle at 85% 12%, rgba(231, 221, 255, 0.9), transparent 30%);
+  border: 1px solid rgba(210, 225, 245, 0.85);
+  box-shadow:
+    0 16px 35px rgba(75, 103, 135, 0.18),
+    inset 0 0 0 1px rgba(255,255,255,0.7);
+}
+
+.smart-match-card span {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.smart-match-card h3 {
+  margin-top: 6px;
+  font-size: 21px;
+  letter-spacing: -0.5px;
+}
+
+.smart-match-card p {
+  margin-top: 4px;
+  max-width: 300px;
+  font-size: 19px;
+  line-height: 1.18;
+  font-weight: 650;
+}
+
+.smart-match-card button {
+  margin-top: 10px;
+  font-size: 19px;
+  font-weight: 850;
+}

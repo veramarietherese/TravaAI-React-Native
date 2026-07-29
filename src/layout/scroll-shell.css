@@ -1,0 +1,10 @@
+.scroll-area {
+  height: calc(100% - 58px);
+  overflow-y: auto;
+  padding: 26px 22px 118px;
+  scrollbar-width: none;
+}
+
+.scroll-area::-webkit-scrollbar {
+  display: none;
+}

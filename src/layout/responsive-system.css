@@ -1,0 +1,44 @@
+:root {
+    --screen-x: clamp(18px, 5vw, 28px);
+    --screen-top: calc(env(safe-area-inset-top) + clamp(18px, 4vw, 28px));
+    --screen-bottom: calc(env(safe-area-inset-bottom) + 142px);
+  
+    --radius-xl: clamp(28px, 7vw, 36px);
+    --radius-lg: clamp(22px, 6vw, 30px);
+    --radius-md: clamp(18px, 5vw, 24px);
+  
+    --gap-sm: clamp(10px, 2.6vw, 14px);
+    --gap-md: clamp(14px, 4vw, 20px);
+    --gap-lg: clamp(22px, 6vw, 34px);
+  
+    --title-xl: clamp(36px, 10vw, 56px);
+    --title-lg: clamp(28px, 7.5vw, 40px);
+    --title-md: clamp(22px, 6vw, 30px);
+    --body-md: clamp(14px, 3.8vw, 18px);
+    --body-sm: clamp(12px, 3.2vw, 15px);
+  
+    --nav-height: clamp(66px, 16vw, 78px);
+  }
+  
+  .scroll-area {
+    width: 100%;
+    min-height: 100dvh;
+    height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: var(--screen-top) var(--screen-x) var(--screen-bottom);
+    box-sizing: border-box;
+  }
+  
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+  }
+  
+  section,
+  article,
+  div {
+    min-width: 0;
+  }

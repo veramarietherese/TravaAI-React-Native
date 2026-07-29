@@ -1,0 +1,190 @@
+/* =========================================================
+   TRAVA AI — CHAT ROOMS LIST
+   Styles for the ChatroomsList component
+========================================================= */
+.list-container {
+  width: 100%;
+  min-height: 100dvh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--chat-ink, #17223d);
+  background:
+    radial-gradient(
+      circle at 88% 6%,
+      rgba(251, 218, 239, 0.66),
+      transparent 27%
+    ),
+    radial-gradient(
+      circle at 8% 4%,
+      rgba(217, 230, 255, 0.76),
+      transparent 30%
+    ),
+    linear-gradient(180deg, #fbfcff, #f7f8ff 54%, #fff9fd);
+}
+
+.list-container button,
+.list-container input,
+.list-container textarea {
+  font: inherit;
+}
+
+.list-container button {
+  border: 0;
+  cursor: pointer;
+}
+
+.list-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 2px 20px 13px;
+  border-right: 1px solid rgba(220, 224, 237, 0.92);
+  background: rgba(255, 255, 255, 0.83);
+  backdrop-filter: blur(22px);
+}
+
+.list-header h1 {
+  margin: 0;
+  font-size: 1.65rem;
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.search-bar-container {
+  min-height: 45px;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid #e3e7ef;
+  border-radius: 13px;
+  color: #8994a8;
+  background: #f6f7fb;
+}
+
+.room-search-input {
+  width: 100%;
+  padding: 10px 0;
+  border: 0;
+  outline: 0;
+  color: #26334b;
+  background: transparent;
+  font-size: 0.72rem;
+}
+
+.rooms-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 10px 110px;
+  border-right: 1px solid rgba(220, 224, 237, 0.92);
+  background: rgba(255, 255, 255, 0.83);
+  backdrop-filter: blur(22px);
+}
+
+.room-card {
+  position: relative;
+  width: 100%;
+  min-height: 88px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  padding: 12px 10px;
+  border-bottom: 1px solid #edf0f5 !important;
+  border-radius: 14px;
+  color: var(--chat-ink, #17223d);
+  background: transparent;
+  text-align: left;
+}
+
+.room-card:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(234, 239, 255, 0.94),
+    rgba(252, 234, 247, 0.88)
+  );
+}
+
+.room-avatar {
+  flex: 0 0 auto;
+  width: 51px;
+  height: 51px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(145deg, #415da9, #7253e3);
+  box-shadow: 0 8px 18px rgba(53, 62, 119, 0.18);
+  font-size: 0.77rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.room-info {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.room-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+}
+
+.room-name {
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-time {
+  flex: 0 0 auto;
+  color: #929caf;
+  font-size: 0.55rem;
+}
+
+.room-preview {
+  overflow: hidden;
+  color: #8993a6;
+  font-size: 0.61rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.system-note {
+  min-height: 330px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 25px;
+  color: #69758c;
+  text-align: center;
+  font-size: 0.67rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* =========================================================
+   UTILITY & ANIMATION
+========================================================= */
+@keyframes chat-widget-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: chat-widget-spin 0.8s linear infinite;
+}

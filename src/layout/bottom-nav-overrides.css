@@ -1,0 +1,26 @@
+.bottom-nav {
+  grid-template-columns: repeat(5, 1fr);
+  height: 78px;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  border-radius: 26px;
+}
+
+.bottom-nav button {
+  font-size: 11px;
+  gap: 5px;
+}
+
+.bottom-nav button svg {
+  width: 19px;
+  height: 19px;
+}
+
+.bottom-nav .active {
+  color: #ff4f93;
+}
+
+.bottom-nav .active::after {
+  display: none;
+}
