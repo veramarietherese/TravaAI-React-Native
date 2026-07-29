@@ -1,50 +1,28 @@
 {
-  "name": "travel-app",
+  "name": "trava-ai",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "server": "node server/gemini.js",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+  "engines": {
+    "node": ">=22.13.0"
   },
-  "dependencies": {
-    "@google/genai": "^1.52.0",
-    "@google/generative-ai": "^0.24.1",
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.6.1",
-    "@supabase/supabase-js": "^2.110.2",
-    "@zxing/browser": "^0.2.1",
-    "cors": "^2.8.6",
-    "d3-geo": "^3.1.1",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "framer-motion": "^12.38.0",
-    "html-to-image": "^1.11.13",
-    "jspdf": "^4.2.1",
-    "jspdf-autotable": "^5.0.8",
-    "lucide-react": "^1.16.0",
-    "maplibre-gl": "^5.24.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "react-globe.gl": "^2.38.0",
-    "recharts": "^3.9.2",
-    "three": "^0.184.0",
-    "topojson-client": "^3.1.0",
-    "uuid": "^14.0.0"
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start --workspace=@trava/mobile",
+    "android": "npm run android --workspace=@trava/mobile",
+    "ios": "npm run ios --workspace=@trava/mobile",
+    "mobile:web": "npm run web --workspace=@trava/mobile",
+    "api": "npm run dev --workspace=@trava/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "verify": "npm run typecheck && npm run lint",
+    "legacy:web:install": "npm --prefix legacy/web-vite install",
+    "legacy:web": "npm --prefix legacy/web-vite run dev"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^10.3.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.6.0",
-    "vercel": "^56.5.0",
-    "vite": "^8.0.12"
+    "supabase": "^2.110.0"
   }
 }
