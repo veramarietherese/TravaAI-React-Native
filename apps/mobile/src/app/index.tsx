@@ -1,5 +1,1 @@
-import { Redirect } from "expo-router";
-
-export default function IndexRoute() {
-  return <Redirect href="/login" />;
-}
+export { EntryGateScreen as default } from "@/features/auth/screens/EntryGateScreen";

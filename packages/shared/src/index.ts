@@ -9,3 +9,4 @@ export * from "./types/user.types";
 export * from "./utils/currency";
 export * from "./utils/dates";
 export * from "./utils/validation";
+export * from "./schemas/trip.schema";
