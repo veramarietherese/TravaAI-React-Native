@@ -1,162 +1,35 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type Href, useLocalSearchParams, useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Glass, PX, ScreenShell } from "../components/TravaPixelUI";
+import { useLocalTripWorkspace } from "../hooks/useLocalTripWorkspace";
+import { useTripLite } from "../hooks/useTripLite";
+import { fetchTripWeather, type TripWeather } from "../utils/weather";
 
-import { deleteTrip, fetchTrip } from "../api/trips.api";
-import { FlightStatusCard } from "../components/FlightStatusCard";
-import { TripWorkspaceHeader } from "../components/TripWorkspaceHeader";
+const FALLBACK_RATES: Record<string, number> = { JPY: 2.65, USD: 0.0175, EUR: 0.015, KRW: 23.5, SGD: 0.022, HKD: 0.137, CHF: 0.014, THB: 0.57 };
 
-const ACTIONS = [
-  ["Itinerary", "Build the daily plan", "itinerary", "▦"],
-  ["Map", "See every activity", "map", "⌖"],
-  ["Budget", "Plan category limits", "budget", "◫"],
-  ["Expenses", "Split and settle costs", "expenses", "₱"],
-  ["Checklist", "Keep local tasks", "checklist", "✓"],
-  ["Documents", "Keep files on device", "documents", "▱"],
-  ["Members", "Invite collaborators", "members", "☺"],
-] as const;
-
-export function TripDetailsScreen() {
-  const { tripId: rawTripId } = useLocalSearchParams<{ tripId: string }>();
-  const tripId = String(rawTripId ?? "");
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const tripQuery = useQuery({ queryKey: ["trip", tripId], queryFn: () => fetchTrip(tripId), enabled: Boolean(tripId) });
-  const removeMutation = useMutation({
-    mutationFn: () => deleteTrip(tripId),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["trips"] }),
-        queryClient.invalidateQueries({ queryKey: ["home-dashboard"] }),
-      ]);
-      router.replace("/(traveler)/(tabs)/trips" as Href);
-    },
-    onError: (error) => Alert.alert("Delete trip", error instanceof Error ? error.message : "Unable to delete this trip."),
-  });
-
-  const trip = tripQuery.data;
-  if (!trip) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <StatusBar style="dark" />
-        {tripQuery.isLoading ? <ActivityIndicator color="#7055EC" size="large" /> : <Text style={styles.error}>{tripQuery.error instanceof Error ? tripQuery.error.message : "Trip unavailable."}</Text>}
-        {tripQuery.isError ? <Pressable onPress={() => void tripQuery.refetch()} style={styles.retry}><Text style={styles.retryText}>Try again</Text></Pressable> : null}
-      </SafeAreaView>
-    );
-  }
-
-  function confirmDelete() {
-    Alert.alert("Delete this trip?", "This removes shared activities, expenses, budget categories, invitations, and uploaded trip media. Local checklist and document copies remain only on this device until you delete them.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete trip", style: "destructive", onPress: () => removeMutation.mutate() },
-    ]);
-  }
-
-  return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
-      <StatusBar style="dark" />
-      <TripWorkspaceHeader tripId={tripId} title={trip.name} subtitle={trip.destination} />
-      <ScrollView
-        refreshControl={<RefreshControl refreshing={tripQuery.isRefetching} onRefresh={() => void tripQuery.refetch()} tintColor="#7055EC" />}
-        contentContainerStyle={styles.content}
-      >
-        <View style={styles.maxWidth}>
-          <View style={styles.hero}>
-            {trip.coverImageUrl ? <Image source={{ uri: trip.coverImageUrl }} contentFit="cover" style={StyleSheet.absoluteFill} /> : <View style={[StyleSheet.absoluteFill, styles.heroFallback]}><Text style={styles.heroPlane}>✈</Text></View>}
-            <View style={styles.heroShade} />
-            <View style={styles.heroTop}><View style={styles.status}><Text style={styles.statusText}>{trip.status.toUpperCase()}</Text></View>{trip.canManageTrip ? <Pressable onPress={() => router.push(`/trip/${tripId}/edit` as Href)} style={styles.heroButton}><Text style={styles.heroButtonText}>Edit trip</Text></Pressable> : null}</View>
-            <View style={styles.heroCopy}><Text style={styles.heroEyebrow}>{trip.numberOfDays} DAY TRIP</Text><Text style={styles.heroTitle}>{trip.name}</Text><Text style={styles.heroDestination}>{trip.destination}</Text></View>
-          </View>
-
-          <View style={styles.metrics}>
-            <Metric label="Dates" value={formatDateRange(trip.startDate, trip.endDate)} />
-            <Metric label="Budget" value={`${trip.currencyCode} ${trip.totalBudget.toLocaleString()}`} />
-            <Metric label="Travelers" value={String(trip.memberCount)} />
-          </View>
-
-          {trip.description ? <View style={styles.card}><Text style={styles.cardTitle}>Trip overview</Text><Text style={styles.description}>{trip.description}</Text><View style={styles.pills}>{trip.travelStyle ? <Pill text={trip.travelStyle} /> : null}{trip.travelGroup ? <Pill text={trip.travelGroup} /> : null}</View></View> : null}
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Plan and collaborate</Text>
-            <Text style={styles.cardSubtitle}>Every tool below is connected to this trip and its accepted members.</Text>
-            <View style={styles.actionGrid}>{ACTIONS.map(([label, subtitle, suffix, icon]) => <Pressable key={suffix} onPress={() => router.push(`/trip/${tripId}/${suffix}` as Href)} style={({ pressed }) => [styles.action, pressed && styles.pressed]}><View style={styles.actionIcon}><Text style={styles.actionGlyph}>{icon}</Text></View><View style={styles.actionCopy}><Text style={styles.actionTitle}>{label}</Text><Text style={styles.actionSubtitle}>{subtitle}</Text></View><Text style={styles.actionChevron}>›</Text></Pressable>)}</View>
-          </View>
-
-          <FlightStatusCard tripId={tripId} initialFlightNumber={trip.flightNumber} initialFlightDate={trip.flightDate} canEdit={trip.canManageTrip} />
-
-          <View style={styles.card}>
-            <View style={styles.cardHeader}><View><Text style={styles.cardTitle}>Travel group</Text><Text style={styles.cardSubtitle}>Owner and accepted members</Text></View><Pressable onPress={() => router.push(`/trip/${tripId}/members` as Href)}><Text style={styles.link}>Manage</Text></Pressable></View>
-            <View style={styles.memberList}>{trip.members.filter((member) => member.status === "accepted").slice(0, 5).map((member) => <View key={member.id} style={styles.member}><View style={styles.avatar}>{member.avatarUrl ? <Image source={{ uri: member.avatarUrl }} contentFit="cover" style={StyleSheet.absoluteFill} /> : <Text style={styles.avatarText}>{member.fullName.slice(0, 1).toUpperCase()}</Text>}</View><View style={styles.memberCopy}><Text style={styles.memberName}>{member.fullName}</Text><Text style={styles.memberRole}>{member.role === "owner" ? "Trip owner" : "Member"}</Text></View></View>)}</View>
-          </View>
-
-          {trip.canManageTrip ? <Pressable disabled={removeMutation.isPending} onPress={confirmDelete} style={styles.deleteButton}>{removeMutation.isPending ? <ActivityIndicator color="#C83B4A" /> : <Text style={styles.deleteText}>Delete trip</Text>}</Pressable> : null}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+export function TripDetailsScreen(){
+ const {tripId:raw}=useLocalSearchParams<{tripId:string}>(); const tripId=String(raw??"local-japan"); const{trip}=useTripLite(tripId); const{state}=useLocalTripWorkspace(tripId); const spent=state.expenses.reduce((a,e)=>a+e.amount,0);
+ const destinationCurrency=currencyFor(`${trip.name||""} ${trip.destination||""}`); const [weather,setWeather]=useState<TripWeather|null>(null); const [amount,setAmount]=useState("1000"); const [rate,setRate]=useState(FALLBACK_RATES[destinationCurrency]??1); const [swapped,setSwapped]=useState(false);
+ const anchor=useMemo(()=>[...state.activities].reverse().find(a=>a.latitude!=null&&a.longitude!=null),[state.activities]);
+ useEffect(()=>{if(!anchor||anchor.latitude==null||anchor.longitude==null)return;let live=true;void fetchTripWeather(anchor.latitude,anchor.longitude,anchor.locationName).then(v=>live&&setWeather(v));return()=>{live=false}},[anchor]);
+ useEffect(()=>{let live=true;void(async()=>{try{const r=await fetch(`https://api.frankfurter.app/latest?from=PHP&to=${destinationCurrency}`);if(!r.ok)return;const j=await r.json() as {rates?:Record<string,number>};const n=j.rates?.[destinationCurrency];if(live&&Number.isFinite(n))setRate(Number(n))}catch{}})();return()=>{live=false}},[destinationCurrency]);
+ const numeric=Math.max(0,Number(amount.replace(/[^0-9.]/g,""))||0); const converted=swapped?(rate?numeric/rate:0):numeric*rate;
+ return <SafeAreaView style={s.safe} edges={["top"]}><StatusBar style="dark"/><ScreenShell tripId={tripId} title={trip.name||"Trip"}><ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}><View style={s.max}>
+   <View style={s.hero}>{trip.coverImageUrl?<Image source={{uri:trip.coverImageUrl}} contentFit="cover" style={StyleSheet.absoluteFillObject}/>:<LinearGradient colors={["#9BA5B7","#777F8E","#545A65"]} style={StyleSheet.absoluteFillObject}/>}<LinearGradient colors={["rgba(12,17,27,.03)","rgba(12,17,27,.72)"]} style={StyleSheet.absoluteFillObject}/><View style={s.heroBottom}><Text style={s.eyebrow}>TRIP OVERVIEW</Text><Text style={s.heroTitle}>{trip.name||"Japan"}</Text><View style={s.heroLocation}><Ionicons name="location-outline" size={15} color="#FFF"/><Text style={s.heroSub}>{trip.destination||"Tokyo, Japan"}</Text></View><View style={s.pills}><Text style={s.pill}>{trip.startDate&&trip.endDate?`${formatDate(trip.startDate)} – ${formatDate(trip.endDate)}`:"Upcoming"}</Text><Text style={s.pill}>{trip.memberCount||1} travelers</Text></View></View></View>
+   <View style={s.metrics}><Glass style={s.metric}><Text style={s.metricLabel}>TOTAL BUDGET</Text><Text style={s.metricValue}>₱{state.totalBudget.toLocaleString()}</Text></Glass><Glass style={s.metric}><Text style={s.metricLabel}>SPENT</Text><Text style={s.metricValue}>₱{spent.toLocaleString()}</Text></Glass><Glass style={s.metric}><Text style={s.metricLabel}>READY</Text><Text style={s.metricValue}>{readiness(state)}%</Text></Glass></View>
+   <View><Text style={s.sectionTitle}>TRAVA travel assistant</Text><Text style={s.sectionSub}>Useful reminders for this trip, without duplicating your Quick Actions.</Text></View>
+   <Glass style={s.assistant}><View style={s.assistantTop}><View style={s.assistantIcon}><Text style={s.assistantEmoji}>{weather?.emoji??"✦"}</Text></View><View style={{flex:1}}><Text style={s.assistantTitle}>{weather?.temperature!=null?`${Math.round(weather.temperature)}°C · ${weather.label}`:"Trip readiness"}</Text><Text style={s.assistantPlace}>{anchor?.locationName||trip.destination||"Destination"}</Text></View></View><Text style={s.assistantTip}>{weather?.tip??"Keep your passport, bookings, payment method, and offline copies of important documents ready before departure."}</Text><View style={s.reminders}>{reminders(state).map(item=><View key={item} style={s.reminder}><Text style={s.check}>✓</Text><Text style={s.reminderText}>{item}</Text></View>)}</View></Glass>
+   <Glass style={s.converter}><View style={s.converterHead}><View><Text style={s.converterTitle}>Currency converter</Text><Text style={s.converterSub}>Live rate when available · no paid API key required</Text></View><Text style={s.fx}>FX</Text></View><View style={s.converterRow}><View style={s.currencyBox}><Text style={s.currencyCode}>{swapped?destinationCurrency:"PHP"}</Text><TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" style={s.amount}/></View><Pressable onPress={()=>setSwapped(v=>!v)} style={s.swap}><Ionicons name="swap-horizontal" size={20} color="#353A43"/></Pressable><View style={s.currencyBox}><Text style={s.currencyCode}>{swapped?"PHP":destinationCurrency}</Text><Text style={s.converted}>{formatNumber(converted)}</Text></View></View><Text style={s.rateText}>1 {swapped?destinationCurrency:"PHP"} ≈ {swapped?formatNumber(rate?1/rate:0):formatNumber(rate)} {swapped?"PHP":destinationCurrency}</Text></Glass>
+ </View></ScrollView></ScreenShell></SafeAreaView>
 }
-
-function Metric({ label, value }: { label: string; value: string }) { return <View style={styles.metric}><Text style={styles.metricLabel}>{label}</Text><Text numberOfLines={2} style={styles.metricValue}>{value}</Text></View>; }
-function Pill({ text }: { text: string }) { return <View style={styles.pill}><Text style={styles.pillText}>{text}</Text></View>; }
-function formatDateRange(start: string | null, end: string | null) {
-  if (!start) return "Not set";
-  const format = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  return end ? `${format(start)} – ${format(end)}` : format(start);
-}
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F8F9FF" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, backgroundColor: "#F8F9FF", padding: 24 },
-  error: { color: "#C83B4A", textAlign: "center", fontSize: 12, lineHeight: 18, fontWeight: "700" },
-  retry: { paddingHorizontal: 17, paddingVertical: 10, borderRadius: 14, backgroundColor: "#7055EC" },
-  retryText: { color: "#FFFFFF", fontSize: 11, fontWeight: "900" },
-  content: { padding: 16, paddingBottom: 50 },
-  maxWidth: { width: "100%", maxWidth: 760, alignSelf: "center", gap: 14 },
-  hero: { minHeight: 270, overflow: "hidden", borderRadius: 28, backgroundColor: "#DAD3FF" },
-  heroFallback: { alignItems: "center", justifyContent: "center", backgroundColor: "#EAE5FF" },
-  heroPlane: { color: "#7259EA", fontSize: 70 },
-  heroShade: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(14,22,44,0.34)" },
-  heroTop: { flexDirection: "row", justifyContent: "space-between", padding: 15 },
-  status: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.9)" },
-  statusText: { color: "#5543B8", fontSize: 9, fontWeight: "900" },
-  heroButton: { paddingHorizontal: 13, paddingVertical: 8, borderRadius: 13, backgroundColor: "rgba(20,29,52,0.82)" },
-  heroButtonText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900" },
-  heroCopy: { position: "absolute", left: 18, right: 18, bottom: 18 },
-  heroEyebrow: { color: "#EDE9FF", fontSize: 9, fontWeight: "900", letterSpacing: 1.2 },
-  heroTitle: { marginTop: 5, color: "#FFFFFF", fontSize: 29, lineHeight: 34, fontWeight: "900" },
-  heroDestination: { marginTop: 3, color: "#F0F2FA", fontSize: 12, fontWeight: "700" },
-  metrics: { flexDirection: "row", gap: 9 },
-  metric: { flex: 1, minWidth: 0, minHeight: 76, borderRadius: 19, padding: 12, justifyContent: "center", backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#ECEEF5" },
-  metricLabel: { color: "#8A94A7", fontSize: 8, fontWeight: "800" },
-  metricValue: { marginTop: 5, color: "#1A263F", fontSize: 13, lineHeight: 17, fontWeight: "900" },
-  card: { borderRadius: 24, padding: 17, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#ECEEF5" },
-  cardHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
-  cardTitle: { color: "#17223C", fontSize: 18, fontWeight: "900" },
-  cardSubtitle: { marginTop: 3, color: "#818B9E", fontSize: 10, lineHeight: 15, fontWeight: "600" },
-  description: { marginTop: 10, color: "#5F6C84", fontSize: 12, lineHeight: 19, fontWeight: "600" },
-  pills: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 7 },
-  pill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "#EEE9FF" },
-  pillText: { color: "#6651CD", fontSize: 9, fontWeight: "800" },
-  actionGrid: { marginTop: 13, gap: 8 },
-  action: { minHeight: 62, flexDirection: "row", alignItems: "center", padding: 10, borderRadius: 17, backgroundColor: "#F7F7FC" },
-  pressed: { opacity: 0.7 },
-  actionIcon: { width: 41, height: 41, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#EDE8FF" },
-  actionGlyph: { color: "#7055EC", fontSize: 20, fontWeight: "900" },
-  actionCopy: { flex: 1, minWidth: 0, paddingHorizontal: 11 },
-  actionTitle: { color: "#263149", fontSize: 12, fontWeight: "900" },
-  actionSubtitle: { marginTop: 2, color: "#8791A4", fontSize: 9, fontWeight: "600" },
-  actionChevron: { color: "#8C7AD7", fontSize: 23 },
-  link: { color: "#7055EC", fontSize: 10, fontWeight: "900" },
-  memberList: { marginTop: 12, gap: 9 },
-  member: { flexDirection: "row", alignItems: "center" },
-  avatar: { width: 38, height: 38, overflow: "hidden", alignItems: "center", justifyContent: "center", borderRadius: 19, backgroundColor: "#EDE8FF" },
-  avatarText: { color: "#6550D8", fontSize: 14, fontWeight: "900" },
-  memberCopy: { marginLeft: 10 },
-  memberName: { color: "#263149", fontSize: 11, fontWeight: "900" },
-  memberRole: { marginTop: 2, color: "#8B94A6", fontSize: 9, fontWeight: "600" },
-  deleteButton: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#FFF0F2", borderWidth: 1, borderColor: "#FFD9DE" },
-  deleteText: { color: "#C83B4A", fontSize: 11, fontWeight: "900" },
-});
+function currencyFor(v:string){const x=v.toLowerCase();if(x.includes("japan")||x.includes("tokyo")||x.includes("osaka"))return"JPY";if(x.includes("korea")||x.includes("seoul"))return"KRW";if(x.includes("hong kong"))return"HKD";if(x.includes("singapore"))return"SGD";if(x.includes("switzerland"))return"CHF";if(x.includes("thailand"))return"THB";if(x.includes("usa")||x.includes("united states"))return"USD";return"USD"}
+function readiness(state:ReturnType<typeof useLocalTripWorkspace>["state"]){const checks=state.checklist.filter(i=>i.completed).length;return Math.max(35,Math.min(100,Math.round((checks/Math.max(1,state.checklist.length))*70+30)))}
+function reminders(state:ReturnType<typeof useLocalTripWorkspace>["state"]){const out=[] as string[];if(!state.documents.length)out.push("Add offline copies of your key travel documents.");else out.push(`${state.documents.length} travel documents are stored in this trip.`);const open=state.checklist.filter(i=>!i.completed).length;out.push(open?`${open} checklist item${open===1?"":"s"} still need attention.`:"Your checklist is complete.");out.push("Keep some local currency and a backup payment method available.");return out}
+function formatDate(v:string){const d=new Date(`${v}T12:00:00`);return Number.isNaN(d.getTime())?v:d.toLocaleDateString(undefined,{month:"short",day:"numeric"})} function formatNumber(v:number){return new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(v)}
+const s=StyleSheet.create({safe:{flex:1,backgroundColor:"#FFF"},scroll:{padding:22,paddingBottom:130},max:{width:"100%",maxWidth:640,alignSelf:"center",gap:16},hero:{height:270,borderRadius:30,overflow:"hidden",boxShadow:"0 16px 38px rgba(40,44,54,.14)"},heroBottom:{position:"absolute",left:24,right:24,bottom:22},eyebrow:{color:"#F1F2F4",fontSize:9,fontWeight:"900",letterSpacing:1.2},heroTitle:{marginTop:5,color:"#FFF",fontSize:34,fontWeight:"900"},heroLocation:{marginTop:5,flexDirection:"row",alignItems:"center",gap:5},heroSub:{color:"#FFF",fontSize:13,fontWeight:"700"},pills:{marginTop:12,flexDirection:"row",gap:8},pill:{paddingHorizontal:11,paddingVertical:7,borderRadius:16,backgroundColor:"rgba(255,255,255,.18)",color:"#FFF",fontSize:10,fontWeight:"800"},metrics:{flexDirection:"row",gap:10},metric:{flex:1,minHeight:88,borderRadius:22,padding:14,justifyContent:"center"},metricLabel:{color:"#8D929B",fontSize:8,fontWeight:"900",letterSpacing:.8},metricValue:{marginTop:7,color:PX.ink,fontSize:17,fontWeight:"900"},sectionTitle:{color:PX.ink,fontSize:21,fontWeight:"900"},sectionSub:{marginTop:3,color:PX.muted,fontSize:11,fontWeight:"600"},assistant:{borderRadius:26,padding:18,backgroundColor:"#FBFBFC"},assistantTop:{flexDirection:"row",gap:12,alignItems:"center"},assistantIcon:{width:50,height:50,borderRadius:18,alignItems:"center",justifyContent:"center",backgroundColor:"#F1F2F4"},assistantEmoji:{fontSize:26},assistantTitle:{color:PX.ink,fontSize:15,fontWeight:"900"},assistantPlace:{marginTop:3,color:PX.muted,fontSize:10,fontWeight:"700"},assistantTip:{marginTop:14,color:"#4E535B",fontSize:11,lineHeight:17,fontWeight:"650"},reminders:{marginTop:13,gap:8},reminder:{flexDirection:"row",gap:8,alignItems:"flex-start"},check:{color:"#4C8E72",fontSize:12,fontWeight:"900"},reminderText:{flex:1,color:"#626770",fontSize:10,lineHeight:15,fontWeight:"650"},converter:{borderRadius:26,padding:18},converterHead:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},converterTitle:{color:PX.ink,fontSize:17,fontWeight:"900"},converterSub:{marginTop:3,color:PX.muted,fontSize:9,fontWeight:"600"},fx:{width:38,height:38,borderRadius:19,textAlign:"center",textAlignVertical:"center",backgroundColor:"#F1F2F4",color:"#535860",fontSize:10,fontWeight:"900"},converterRow:{marginTop:16,flexDirection:"row",alignItems:"center",gap:8},currencyBox:{flex:1,minHeight:76,padding:12,borderRadius:20,backgroundColor:"#F7F8FA",borderWidth:1,borderColor:"#E5E7EB"},currencyCode:{color:"#777C84",fontSize:9,fontWeight:"900"},amount:{marginTop:6,color:PX.ink,fontSize:18,fontWeight:"900"},converted:{marginTop:8,color:PX.ink,fontSize:18,fontWeight:"900"},swap:{width:42,height:42,borderRadius:21,alignItems:"center",justifyContent:"center",backgroundColor:"#FFF",borderWidth:1,borderColor:"#E4E6EA"},rateText:{marginTop:10,color:PX.muted,fontSize:9,fontWeight:"650"}});
