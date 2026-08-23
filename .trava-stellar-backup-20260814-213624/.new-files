@@ -1,0 +1,12 @@
+supabase/migrations/20260814210000_realtime_messaging.sql
+apps/mobile/src/app/passport.tsx
+apps/mobile/src/app/(traveler)/(tabs)/messages.tsx
+apps/mobile/src/features/chat/api/chat.api.ts
+apps/mobile/src/features/profile/screens/PassportMemoriesScreen.tsx
+apps/mobile/src/features/ai/api/ai.api.ts
+apps/mobile/src/features/weather/components/WeatherPreparationCard.tsx
+apps/mobile/src/features/weather/api/weather.api.ts
+apps/mobile/src/components/navigation/TravaTabBar.tsx
+apps/mobile/assets/images/profile/passport.png
+apps/mobile/assets/images/profile/luggage-mascot.gif
+apps/mobile/assets/images/budget/budget-piggy.png
