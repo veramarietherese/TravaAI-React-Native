@@ -1,9 +1,14 @@
-import type { TripActivity } from "@trava/shared";
-
+export interface TripMapActivity {
+  id: string;
+  title: string;
+  category: string;
+  locationName: string;
+  latitude: number | null;
+  longitude: number | null;
+}
 export interface TripMapSurfaceProps {
-  activities: TripActivity[];
+  activities: TripMapActivity[];
   selectedActivityId?: string | null;
   onSelectActivity?(activityId: string): void;
-  showUserLocation?: boolean;
   height?: number;
 }
