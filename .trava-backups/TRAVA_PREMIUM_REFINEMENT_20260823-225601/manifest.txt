@@ -1,0 +1,12 @@
+E	src/app/(traveler)/(tabs)/_layout.tsx
+E	src/components/navigation/TravaGlassNav.tsx
+E	src/features/budget/screens/BudgetScreen.tsx
+E	src/features/checklist/screens/ChecklistScreen.tsx
+E	src/features/documents/screens/DocumentsScreen.tsx
+E	src/features/expenses/screens/ExpensesScreen.tsx
+E	src/features/explore/components/DiscoverMap.web.tsx
+E	src/features/explore/screens/ExploreScreen.tsx
+E	src/features/itinerary/screens/ItineraryScreen.tsx
+E	src/features/trips/components/PremiumCategoryIcon.tsx
+N	src/features/home/components/TravelAgencyPromoBanner.tsx
+E	src/features/home/screens/HomeScreen.tsx
