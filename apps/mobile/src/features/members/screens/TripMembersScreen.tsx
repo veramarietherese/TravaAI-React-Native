@@ -1,63 +1,119 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TripMember } from "@trava/shared";
 import { useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useState, type ReactNode } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useMemo, useState, type ReactNode } from "react";
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { fetchTrip } from "@/features/trips/api/trips.api";
-import { TripWorkspaceHeader } from "@/features/trips/components/TripWorkspaceHeader";
-import { inviteTripMember, listTripMembers, removeTripMember } from "../api/members.api";
+import { Glass, PX, ScreenShell } from "@/features/trips/components/TravaPixelUI";
+import { useLocalTripWorkspace } from "@/features/trips/hooks/useLocalTripWorkspace";
+import { useTripLite } from "@/features/trips/hooks/useTripLite";
+import { inviteTripMember, listTripMembers, removeTripMember, resolveTripMemberIdentity, type ResolvedTraveler } from "../api/members.api";
 
 export function TripMembersScreen() {
   const { tripId: rawTripId } = useLocalSearchParams<{ tripId: string }>();
-  const tripId = String(rawTripId ?? "");
+  const tripId = String(rawTripId ?? "local-japan");
+  const { trip } = useTripLite(tripId);
+  const { syncStatus, onlineCount } = useLocalTripWorkspace(tripId);
   const queryClient = useQueryClient();
   const [inviteOpen, setInviteOpen] = useState(false);
-  const tripQuery = useQuery({ queryKey: ["trip", tripId], queryFn: () => fetchTrip(tripId), enabled: Boolean(tripId) });
-  const membersQuery = useQuery({ queryKey: ["trip-members", tripId], queryFn: () => listTripMembers(tripId), enabled: Boolean(tripId) });
-  const trip = tripQuery.data;
-  const payload = membersQuery.data;
 
-  const inviteMutation = useMutation({ mutationFn: (email: string) => inviteTripMember(tripId, email), onSuccess: async (message) => { setInviteOpen(false); Alert.alert("Invitation ready", message); await refresh(); }, onError: (error) => Alert.alert("Invite member", message(error)) });
-  const removeMutation = useMutation({ mutationFn: (memberId: string) => removeTripMember(tripId, memberId), onSuccess: refresh, onError: (error) => Alert.alert("Remove member", message(error)) });
+  const membersQuery = useQuery({ queryKey: ["trip-members", tripId], queryFn: () => listTripMembers(tripId), enabled: Boolean(tripId) && !tripId.startsWith("local-") });
+  const payload = membersQuery.data;
+  const members = payload?.members ?? [];
+  const accepted = useMemo(() => members.filter((member) => member.status === "accepted"), [members]);
+  const pending = useMemo(() => members.filter((member) => member.status === "pending"), [members]);
+  const canManage = payload?.canManage ?? (trip.ownerId !== "local");
 
   async function refresh() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["trip-members", tripId] }),
-      queryClient.invalidateQueries({ queryKey: ["trip", tripId] }),
       queryClient.invalidateQueries({ queryKey: ["trips"] }),
     ]);
   }
+
+  const invite = useMutation({
+    mutationFn: (email: string) => inviteTripMember(tripId, email),
+    onSuccess: async (message) => { setInviteOpen(false); await refresh(); Alert.alert("Invitation sent", message); },
+    onError: (error) => Alert.alert("Invite traveler", message(error)),
+  });
+  const remove = useMutation({
+    mutationFn: (memberId: string) => removeTripMember(tripId, memberId),
+    onSuccess: refresh,
+    onError: (error) => Alert.alert("Remove traveler", message(error)),
+  });
+
   function confirmRemove(member: TripMember) {
-    Alert.alert("Remove traveler?", `${member.fullName} will lose access to this trip and its shared itinerary and expenses.`, [{ text: "Cancel", style: "cancel" }, { text: "Remove", style: "destructive", onPress: () => removeMutation.mutate(member.id) }]);
+    Alert.alert("Remove traveler?", `${member.fullName} will lose access to this trip.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => remove.mutate(member.id) },
+    ]);
   }
 
-  if (!trip) return <SafeAreaView style={styles.center}>{tripQuery.isLoading ? <ActivityIndicator color="#7257EC" size="large" /> : <Text style={styles.error}>{message(tripQuery.error)}</Text>}</SafeAreaView>;
-  const accepted = payload?.members.filter((member) => member.status === "accepted") ?? trip.members.filter((member) => member.status === "accepted");
-  const pending = payload?.members.filter((member) => member.status === "pending") ?? trip.members.filter((member) => member.status === "pending");
-  const canManage = payload?.canManage ?? trip.canManageMembers;
+  return <SafeAreaView style={s.safe} edges={["top"]}><StatusBar style="dark"/><ScreenShell tripId={tripId} title={trip.name || "Trip"}>
+    <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}><View style={s.max}>
+      <View style={s.liveCard}>
+        <View style={s.liveIcon}><Ionicons name="people" size={27} color="#34383E"/><View style={[s.statusDot, syncStatus === "offline" && s.statusOffline]}/></View>
+        <View style={s.liveCopy}><Text style={s.liveTitle}>Live trip collaboration</Text><Text style={s.liveText}>{syncStatus === "live" ? `${onlineCount} collaborator${onlineCount === 1 ? "" : "s"} online · edits sync instantly` : syncStatus === "connecting" ? "Connecting to live trip sync…" : syncStatus === "offline" ? "Offline · your changes remain saved locally" : "Local workspace ready"}</Text></View>
+        {canManage && !tripId.startsWith("local-") ? <Pressable onPress={() => setInviteOpen(true)} style={s.invite}><Ionicons name="person-add" size={17} color="#FFFFFF"/><Text style={s.inviteText}>Invite</Text></Pressable> : null}
+      </View>
 
-  return <SafeAreaView style={styles.safe} edges={["top"]}><StatusBar style="dark" /><TripWorkspaceHeader tripId={tripId} title={trip.name} subtitle="Members and invitations" /><ScrollView refreshControl={<RefreshControl refreshing={membersQuery.isRefetching} onRefresh={() => void membersQuery.refetch()} tintColor="#7257EC" />} contentContainerStyle={styles.content}><View style={styles.maxWidth}>
-    <View style={styles.hero}><View style={styles.heroIcon}><Text style={styles.heroGlyph}>☺</Text></View><View style={styles.heroCopy}><Text style={styles.heroTitle}>Travel together, safely</Text><Text style={styles.heroText}>Accepted members can view and contribute. Only the owner can edit trip settings, budget categories, invitations, and remove members.</Text></View>{canManage ? <Pressable onPress={() => setInviteOpen(true)} style={styles.inviteButton}><Text style={styles.inviteButtonText}>＋ Invite</Text></Pressable> : null}</View>
-    <Section title="Trip owner" subtitle="Full administrative control"><MemberRow member={accepted.find((item) => item.role === "owner") ?? trip.owner} /></Section>
-    <Section title="Accepted members" subtitle={`${accepted.filter((item) => item.role !== "owner").length} collaborators`}>
-      {accepted.filter((item) => item.role !== "owner").map((member) => <MemberRow key={member.id} member={member} action={canManage ? <Pressable disabled={removeMutation.isPending} onPress={() => confirmRemove(member)}><Text style={styles.remove}>Remove</Text></Pressable> : null} />)}
-      {!accepted.some((item) => item.role !== "owner") ? <Empty text="Invite another traveler to collaborate on the itinerary and expenses." /> : null}
-    </Section>
-    <Section title="Pending invitations" subtitle="Accounts must already exist in Trava AI">
-      {pending.map((member) => <MemberRow key={member.id} member={member} action={canManage ? <Pressable disabled={removeMutation.isPending} onPress={() => confirmRemove(member)}><Text style={styles.remove}>Cancel</Text></Pressable> : null} />)}
-      {!pending.length ? <Empty text="There are no invitations waiting for a response." /> : null}
-    </Section>
-    <View style={styles.permissions}><Text style={styles.permissionsTitle}>{canManage ? "Your permissions: Owner" : "Your permissions: Member"}</Text><Text style={styles.permissionsText}>{canManage ? "You can edit the trip, manage members and budget categories, and moderate all shared content." : "You can view the trip and add activities and expenses. You may edit or delete only content you created."}</Text></View>
-  </View></ScrollView><InviteModal key={inviteOpen ? "invite-open" : "invite-closed"} visible={inviteOpen} saving={inviteMutation.isPending} onClose={() => setInviteOpen(false)} onInvite={(email) => inviteMutation.mutate(email)} /></SafeAreaView>;
+      <Glass style={s.infoCard}><Ionicons name="sync-circle-outline" size={22} color="#555A61"/><Text style={s.infoText}>Accepted travelers can open the same trip and see itinerary, expense, budget and checklist changes live. Each device keeps a local copy so the workspace remains usable if someone disconnects.</Text></Glass>
+
+      {membersQuery.isLoading ? <View style={s.loading}><ActivityIndicator color="#6E9BDA"/><Text style={s.loadingText}>Loading travelers…</Text></View> : null}
+      {membersQuery.isError ? <Glass style={s.errorCard}><Ionicons name="alert-circle-outline" size={22} color="#C66A7C"/><View style={{ flex: 1 }}><Text style={s.errorTitle}>Members could not load</Text><Text style={s.errorText}>{message(membersQuery.error)}</Text></View><Pressable onPress={() => void membersQuery.refetch()} style={s.retry}><Text style={s.retryText}>Retry</Text></Pressable></Glass> : null}
+
+      {!membersQuery.isLoading && !membersQuery.isError ? <>
+        <Section title="Travel group" subtitle={`${accepted.length || Math.max(1, trip.memberCount)} accepted traveler${(accepted.length || trip.memberCount) === 1 ? "" : "s"}`}>
+          {accepted.length ? accepted.map((member) => <MemberRow key={`accepted-${member.id}`} member={member} action={canManage && member.role !== "owner" ? <Pressable onPress={() => confirmRemove(member)} style={s.rowAction}><Ionicons name="person-remove-outline" size={17} color="#C86779"/></Pressable> : null}/>) : <Empty text="Invite friends by the email they use for TRAVA."/>}
+        </Section>
+        <Section title="Pending invitations" subtitle={pending.length ? "Waiting for a response" : "No pending invitations"}>
+          {pending.length ? pending.map((member) => <MemberRow key={`pending-${member.id}`} member={member} pending action={canManage ? <Pressable onPress={() => confirmRemove(member)} style={s.rowAction}><Ionicons name="close" size={18} color="#C86779"/></Pressable> : null}/>) : <Empty text="Everyone you invited has responded."/>}
+        </Section>
+      </> : null}
+    </View></ScrollView>
+    <InviteModal key={inviteOpen ? "invite-modal-open" : "invite-modal-idle"} tripId={tripId} visible={inviteOpen} saving={invite.isPending} onClose={() => setInviteOpen(false)} onInvite={(email) => invite.mutate(email)}/>
+  </ScreenShell></SafeAreaView>;
 }
 
-function Section({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) { return <View style={styles.section}><View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionSubtitle}>{subtitle}</Text></View></View><View style={styles.memberList}>{children}</View></View>; }
-function MemberRow({ member, action }: { member: TripMember; action?: ReactNode }) { return <View style={styles.member}><View style={styles.avatar}>{member.avatarUrl ? <Image source={{ uri: member.avatarUrl }} contentFit="cover" style={StyleSheet.absoluteFill} /> : <Text style={styles.avatarText}>{member.fullName.slice(0, 1).toUpperCase()}</Text>}</View><View style={styles.memberCopy}><Text style={styles.memberName}>{member.fullName}</Text><Text style={styles.memberMeta}>{member.email ?? "Email unavailable"} · {member.role === "owner" ? "Owner" : member.status === "pending" ? "Invitation pending" : "Member"}</Text></View>{action}</View>; }
-function Empty({ text }: { text: string }) { return <View style={styles.empty}><Text style={styles.emptyText}>{text}</Text></View>; }
-function InviteModal({ visible, saving, onClose, onInvite }: { visible: boolean; saving: boolean; onClose(): void; onInvite(email: string): void }) { const [email, setEmail] = useState(""); const [error, setError] = useState<string | null>(null); return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.modalBackdrop}><View style={styles.modalCard}><Text style={styles.modalTitle}>Invite by email</Text><Text style={styles.modalText}>For privacy, invitations can be sent only to an email that already belongs to a verified Trava AI traveler.</Text><TextInput autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="traveler@example.com" placeholderTextColor="#98A1B3" style={styles.input} />{error ? <Text style={styles.error}>{error}</Text> : null}<View style={styles.modalActions}><Pressable disabled={saving} onPress={onClose} style={styles.cancelButton}><Text style={styles.cancelText}>Cancel</Text></Pressable><Pressable disabled={saving} onPress={() => { const normalized = email.trim().toLowerCase(); if (!/^\S+@\S+\.\S+$/.test(normalized)) { setError("Enter a valid email address."); return; } setError(null); onInvite(normalized); }} style={styles.sendButton}>{saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.sendText}>Send invitation</Text>}</Pressable></View></View></View></Modal>; }
+function Section({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+  return <View style={s.section}><View><Text style={s.sectionTitle}>{title}</Text><Text style={s.sectionSub}>{subtitle}</Text></View><View style={s.list}>{children}</View></View>;
+}
+function MemberRow({ member, pending, action }: { member: TripMember; pending?: boolean; action?: ReactNode }) {
+  return <Glass style={s.member}><View style={s.avatar}>{member.avatarUrl ? <Image source={{ uri: member.avatarUrl }} contentFit="cover" style={StyleSheet.absoluteFillObject}/> : <Text style={s.avatarText}>{member.fullName.slice(0,1).toUpperCase()}</Text>}</View><View style={s.memberCopy}><View style={s.nameRow}><Text style={s.memberName}>{member.fullName}</Text>{member.role === "owner" ? <View style={s.ownerPill}><Text style={s.ownerText}>OWNER</Text></View> : null}</View><Text style={s.memberMeta}>{member.email ?? "TRAVA traveler"}</Text></View>{pending ? <View style={s.pendingPill}><Ionicons name="time-outline" size={13} color="#A27657"/><Text style={s.pendingText}>Pending</Text></View> : <View style={s.onlinePill}><View style={s.miniDot}/><Text style={s.onlineText}>Member</Text></View>}{action}</Glass>;
+}
+function Empty({ text }: { text: string }) { return <View style={s.empty}><Ionicons name="people-outline" size={26} color="#8BA7C9"/><Text style={s.emptyText}>{text}</Text></View>; }
+function InviteModal({ tripId, visible, saving, onClose, onInvite }: { tripId: string; visible: boolean; saving: boolean; onClose(): void; onInvite(email: string): void }) {
+  const [identity, setIdentity] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [resolved, setResolved] = useState<ResolvedTraveler | null>(null);
+  const [checked, setChecked] = useState(false);
+  const [checking, setChecking] = useState(false);
+  if (!visible) return null;
+
+  async function findTraveler() {
+    const exact = identity.trim();
+    if (exact.length < 3) { setError("Finish typing the exact email address or full TRAVA name first."); return; }
+    setChecking(true); setChecked(false); setResolved(null); setError(null);
+    try {
+      const person = await resolveTripMemberIdentity(tripId, exact);
+      setResolved(person); setChecked(true);
+    } catch (err) { setChecked(true); setError(message(err)); }
+    finally { setChecking(false); }
+  }
+
+  return <Modal visible transparent animationType="fade" onRequestClose={onClose}><View style={s.backdrop}><View style={s.modal}><View style={s.modalHead}><View style={{flex:1}}><Text style={s.modalTitle}>Invite a travel buddy</Text><Text style={s.modalSub}>For privacy, TRAVA never exposes partial account suggestions. Enter the exact email or full registered name, then press Find traveler.</Text></View><Pressable onPress={onClose} style={s.close}><Ionicons name="close" size={20} color="#5F646B"/></Pressable></View>
+    <Text style={s.label}>Exact email or full name</Text><View style={s.findRow}><TextInput autoFocus autoCapitalize="none" autoCorrect={false} value={identity} onChangeText={(text)=>{setIdentity(text);setResolved(null);setChecked(false);setError(null);}} onSubmitEditing={()=>void findTraveler()} placeholder="vera@example.com or Vera Marie Therese" placeholderTextColor="#999DA4" style={[s.input,{flex:1}]}/><Pressable disabled={checking || identity.trim().length<3} onPress={()=>void findTraveler()} style={[s.findButton,(checking || identity.trim().length<3)&&{opacity:.45}]}>{checking?<ActivityIndicator color="#FFF"/>:<Text style={s.findButtonText}>Find traveler</Text>}</Pressable></View>
+    {checked ? <View style={s.resolveBox}>{resolved ? <><View style={s.resolveAvatar}>{resolved.avatarUrl?<Image source={{uri:resolved.avatarUrl}} contentFit="cover" style={StyleSheet.absoluteFillObject}/>:<Text style={s.resolveAvatarText}>{resolved.fullName.slice(0,1).toUpperCase()}</Text>}</View><View style={{flex:1}}><Text style={s.resolveLabel}>Exact registered match</Text><Text style={s.resolveName}>{resolved.fullName}</Text><Text style={s.resolveEmail}>{resolved.email}</Text></View><Ionicons name="checkmark-circle" size={21} color="#4F765F"/></> : <><Ionicons name="shield-outline" size={20} color="#666B72"/><Text style={s.resolveMuted}>No registered traveler matches that exact identity.</Text></>}</View> : null}
+    {error ? <Text style={s.formError}>{error}</Text> : null}
+    <View style={s.modalBtns}><Pressable onPress={onClose} style={s.cancel}><Text style={s.cancelText}>Cancel</Text></Pressable><Pressable disabled={saving || !resolved} onPress={() => resolved && onInvite(resolved.email)} style={[s.sendPress,(saving||!resolved)&&{opacity:.45}]}><View style={s.send}>{saving?<ActivityIndicator color="#FFF"/>:<><Ionicons name="send" size={16} color="#FFF"/><Text style={s.sendText}>Send invite</Text></>}</View></Pressable></View>
+  </View></View></Modal>;
+}
 function message(error: unknown) { return error instanceof Error ? error.message : "Something went wrong."; }
-const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: "#F8F9FF" }, center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }, content: { padding: 16, paddingBottom: 60 }, maxWidth: { width: "100%", maxWidth: 760, alignSelf: "center" }, hero: { flexDirection: "row", alignItems: "center", gap: 13, padding: 17, borderRadius: 24, backgroundColor: "#17223C" }, heroIcon: { width: 50, height: 50, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#7257EC" }, heroGlyph: { color: "#FFFFFF", fontSize: 25, fontWeight: "900" }, heroCopy: { flex: 1 }, heroTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" }, heroText: { marginTop: 4, color: "#C6CDE0", fontSize: 9, lineHeight: 14, fontWeight: "600" }, inviteButton: { paddingHorizontal: 13, paddingVertical: 10, borderRadius: 14, backgroundColor: "#FF6F91" }, inviteButtonText: { color: "#FFFFFF", fontSize: 9, fontWeight: "900" }, section: { marginTop: 14, padding: 16, borderRadius: 23, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E9EBF3" }, sectionHeader: { flexDirection: "row", justifyContent: "space-between" }, sectionTitle: { color: "#17223C", fontSize: 16, fontWeight: "900" }, sectionSubtitle: { marginTop: 3, color: "#8791A3", fontSize: 9, fontWeight: "600" }, memberList: { marginTop: 12, gap: 8 }, member: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 11, padding: 10, borderRadius: 17, backgroundColor: "#F7F8FC" }, avatar: { width: 42, height: 42, overflow: "hidden", borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "#E6E0FF" }, avatarText: { color: "#7257EC", fontSize: 15, fontWeight: "900" }, memberCopy: { flex: 1, minWidth: 0 }, memberName: { color: "#17223C", fontSize: 11, fontWeight: "900" }, memberMeta: { marginTop: 4, color: "#7A8599", fontSize: 8, fontWeight: "600" }, remove: { color: "#C83B4A", fontSize: 9, fontWeight: "900" }, empty: { padding: 18, alignItems: "center", borderRadius: 16, backgroundColor: "#F8F9FC" }, emptyText: { textAlign: "center", color: "#8791A3", fontSize: 9, lineHeight: 14, fontWeight: "600" }, permissions: { marginTop: 14, padding: 16, borderRadius: 20, backgroundColor: "#F0ECFF" }, permissionsTitle: { color: "#5E45D3", fontSize: 11, fontWeight: "900" }, permissionsText: { marginTop: 5, color: "#6E668F", fontSize: 9, lineHeight: 15, fontWeight: "600" }, modalBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20, backgroundColor: "rgba(9,15,30,0.5)" }, modalCard: { width: "100%", maxWidth: 460, padding: 20, borderRadius: 25, backgroundColor: "#FFFFFF" }, modalTitle: { color: "#17223C", fontSize: 20, fontWeight: "900" }, modalText: { marginTop: 6, color: "#7A8599", fontSize: 10, lineHeight: 16, fontWeight: "600" }, input: { marginTop: 16, minHeight: 48, paddingHorizontal: 13, borderRadius: 15, color: "#17223C", backgroundColor: "#F3F4F8", fontSize: 11, fontWeight: "700" }, modalActions: { marginTop: 16, flexDirection: "row", gap: 9 }, cancelButton: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: 15, backgroundColor: "#EEF0F5" }, cancelText: { color: "#5F6B80", fontSize: 10, fontWeight: "900" }, sendButton: { flex: 2, minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: 15, backgroundColor: "#7257EC" }, sendText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900" }, error: { marginTop: 9, color: "#C83B4A", fontSize: 9, fontWeight: "700" } });
+
+const s = StyleSheet.create({
+  safe:{flex:1,backgroundColor:"#FFF"},scroll:{padding:22,paddingBottom:130},max:{width:"100%",maxWidth:640,alignSelf:"center",gap:16},liveCard:{minHeight:112,padding:18,borderRadius:28,flexDirection:"row",alignItems:"center",gap:13,backgroundColor:"#F8F8F8",borderWidth:1,borderColor:"#E0E1E3",boxShadow:"0 14px 32px rgba(24,26,30,.06)"},liveIcon:{width:56,height:56,borderRadius:19,alignItems:"center",justifyContent:"center",backgroundColor:"rgba(255,255,255,.85)",borderWidth:1,borderColor:"#E1E2E4"},statusDot:{position:"absolute",right:3,bottom:3,width:11,height:11,borderRadius:6,backgroundColor:"#4FC89A",borderWidth:2,borderColor:"#FFF"},statusOffline:{backgroundColor:"#E99AA9"},liveCopy:{flex:1},liveTitle:{color:PX.ink,fontSize:17,fontWeight:"900"},liveText:{marginTop:4,color:"#637393",fontSize:10,lineHeight:15,fontWeight:"700"},invite:{height:43,paddingHorizontal:13,borderRadius:16,flexDirection:"row",alignItems:"center",gap:6,backgroundColor:"#272A2F"},inviteText:{color:"#FFF",fontSize:10,fontWeight:"900"},infoCard:{padding:14,borderRadius:20,flexDirection:"row",alignItems:"flex-start",gap:10},infoText:{flex:1,color:"#62708B",fontSize:9,lineHeight:15,fontWeight:"600"},loading:{padding:30,alignItems:"center",gap:8},loadingText:{color:PX.muted,fontSize:10,fontWeight:"700"},errorCard:{padding:14,borderRadius:20,flexDirection:"row",alignItems:"center",gap:10},errorTitle:{color:PX.ink,fontSize:11,fontWeight:"900"},errorText:{marginTop:3,color:PX.muted,fontSize:9,fontWeight:"600"},retry:{paddingHorizontal:11,paddingVertical:8,borderRadius:12,backgroundColor:"#F1F1F2"},retryText:{color:"#34383E",fontSize:9,fontWeight:"900"},section:{gap:10},sectionTitle:{color:PX.ink,fontSize:18,fontWeight:"900"},sectionSub:{marginTop:3,color:PX.muted,fontSize:9,fontWeight:"600"},list:{gap:8},member:{minHeight:70,padding:10,borderRadius:20,flexDirection:"row",alignItems:"center",gap:10},avatar:{width:46,height:46,borderRadius:23,overflow:"hidden",alignItems:"center",justifyContent:"center",backgroundColor:"#ECECED"},avatarText:{color:"#34383E",fontSize:16,fontWeight:"900"},memberCopy:{flex:1,minWidth:0},nameRow:{flexDirection:"row",alignItems:"center",gap:7},memberName:{color:PX.ink,fontSize:12,fontWeight:"900"},memberMeta:{marginTop:4,color:PX.muted,fontSize:9,fontWeight:"600"},ownerPill:{paddingHorizontal:7,paddingVertical:3,borderRadius:8,backgroundColor:"#F0F0F1"},ownerText:{color:"#565B62",fontSize:7,fontWeight:"900"},onlinePill:{paddingHorizontal:8,paddingVertical:5,borderRadius:12,flexDirection:"row",alignItems:"center",gap:4,backgroundColor:"#EDF8F4"},miniDot:{width:6,height:6,borderRadius:3,backgroundColor:"#4FC89A"},onlineText:{color:"#4F9078",fontSize:8,fontWeight:"900"},pendingPill:{paddingHorizontal:8,paddingVertical:5,borderRadius:12,flexDirection:"row",alignItems:"center",gap:4,backgroundColor:"#FFF5EB"},pendingText:{color:"#A27657",fontSize:8,fontWeight:"900"},rowAction:{width:34,height:34,borderRadius:12,alignItems:"center",justifyContent:"center",backgroundColor:"#FFF4F6"},empty:{minHeight:90,borderRadius:20,alignItems:"center",justifyContent:"center",gap:6,backgroundColor:"#F8F8F8",borderWidth:1,borderColor:"#E2E3E5"},emptyText:{color:PX.muted,fontSize:9,fontWeight:"600"},backdrop:{flex:1,alignItems:"center",justifyContent:"center",padding:22,backgroundColor:"rgba(12,18,38,.42)"},modal:{width:"100%",maxWidth:440,padding:20,borderRadius:26,backgroundColor:"#FFF"},modalHead:{flexDirection:"row",alignItems:"flex-start",justifyContent:"space-between",gap:10},modalTitle:{color:PX.ink,fontSize:19,fontWeight:"900"},modalSub:{marginTop:4,color:PX.muted,fontSize:9,fontWeight:"600"},close:{width:36,height:36,borderRadius:13,alignItems:"center",justifyContent:"center",backgroundColor:"#F4F4F5"},label:{marginTop:15,marginBottom:6,color:"#526079",fontSize:9,fontWeight:"900"},input:{height:50,paddingHorizontal:14,borderRadius:16,backgroundColor:"#F6F6F7",borderWidth:1,borderColor:"#E1E2E4",color:PX.ink,fontSize:11,fontWeight:"700"},formError:{marginTop:8,color:"#C46172",fontSize:9,fontWeight:"700"},modalBtns:{marginTop:16,flexDirection:"row",gap:8},cancel:{flex:1,height:46,borderRadius:14,alignItems:"center",justifyContent:"center",backgroundColor:"#EFEFF0"},cancelText:{color:PX.muted,fontSize:9,fontWeight:"900"},sendPress:{flex:1.6},send:{height:46,borderRadius:14,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:6,backgroundColor:"#272A2F"},sendText:{color:"#FFF",fontSize:9,fontWeight:"900"},findRow:{flexDirection:"row",gap:8,alignItems:"center"},findButton:{minWidth:112,height:50,paddingHorizontal:12,borderRadius:15,alignItems:"center",justifyContent:"center",backgroundColor:"#272A2F"},findButtonText:{color:"#FFF",fontSize:9,fontWeight:"900"},resolveBox:{marginTop:10,minHeight:58,paddingHorizontal:12,paddingVertical:9,borderRadius:16,flexDirection:"row",alignItems:"center",gap:9,backgroundColor:"#F7F7F8",borderWidth:1,borderColor:"#E1E2E4"},resolveAvatar:{width:36,height:36,borderRadius:18,alignItems:"center",justifyContent:"center",backgroundColor:"#E9E9EA"},resolveAvatarText:{color:"#2E3136",fontSize:12,fontWeight:"900"},resolveLabel:{color:"#777C84",fontSize:7,fontWeight:"800",textTransform:"uppercase",letterSpacing:.6},resolveName:{marginTop:2,color:PX.ink,fontSize:11,fontWeight:"900"},resolveEmail:{marginTop:2,color:"#777C84",fontSize:8,fontWeight:"650"},resolveMuted:{flex:1,color:"#6E737B",fontSize:9,lineHeight:14,fontWeight:"650"},
+});
