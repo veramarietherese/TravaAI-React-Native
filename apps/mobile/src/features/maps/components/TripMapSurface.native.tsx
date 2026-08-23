@@ -1,100 +1,13 @@
-import * as Linking from "expo-linking";
-import * as Location from "expo-location";
-import { useState } from "react";
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, Polyline, type Region } from "react-native-maps";
-
-import type { TripActivity } from "@trava/shared";
+import { useMemo } from "react";
+import { StyleSheet, View } from "react-native";
+import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { TripMapSurfaceProps } from "./TripMapSurface.types";
 
-const DEFAULT_REGION: Region = { latitude: 12.8797, longitude: 121.774, latitudeDelta: 12, longitudeDelta: 12 };
-
-function coordinates(activities: TripActivity[]) {
-  return activities
-    .filter((item) => item.latitude !== null && item.longitude !== null)
-    .map((item) => ({ latitude: item.latitude as number, longitude: item.longitude as number }));
+export function TripMapSurface({activities,selectedActivityId,onSelectActivity,height=360}:TripMapSurfaceProps){
+ const html=useMemo(()=>makeHtml(activities,selectedActivityId),[activities,selectedActivityId]);
+ const onMessage=(event:WebViewMessageEvent)=>{try{const p=JSON.parse(event.nativeEvent.data) as {type?:string;id?:string};if(p.type==="trava-select"&&p.id)onSelectActivity?.(p.id)}catch{}};
+ return <View style={[s.wrap,{height}]}><WebView source={{html}} onMessage={onMessage} javaScriptEnabled domStorageEnabled originWhitelist={["*"]} style={s.web}/></View>;
 }
-
-function initialRegion(activities: TripActivity[]): Region {
-  const points = coordinates(activities);
-  if (!points.length) return DEFAULT_REGION;
-  const latitudes = points.map((point) => point.latitude);
-  const longitudes = points.map((point) => point.longitude);
-  const minLat = Math.min(...latitudes);
-  const maxLat = Math.max(...latitudes);
-  const minLng = Math.min(...longitudes);
-  const maxLng = Math.max(...longitudes);
-  return {
-    latitude: (minLat + maxLat) / 2,
-    longitude: (minLng + maxLng) / 2,
-    latitudeDelta: Math.max(0.08, (maxLat - minLat) * 1.7),
-    longitudeDelta: Math.max(0.08, (maxLng - minLng) * 1.7),
-  };
-}
-
-export function TripMapSurface({ activities, selectedActivityId, onSelectActivity, showUserLocation = true, height = 320 }: TripMapSurfaceProps) {
-  const [locationEnabled, setLocationEnabled] = useState(false);
-  const [permissionBusy, setPermissionBusy] = useState(false);
-  const plotted = activities.filter((item) => item.latitude !== null && item.longitude !== null);
-
-  async function enableLocation() {
-    setPermissionBusy(true);
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert("Location permission", "Location access is optional. You can still view all saved itinerary markers.");
-        return;
-      }
-      setLocationEnabled(true);
-    } finally {
-      setPermissionBusy(false);
-    }
-  }
-
-  async function navigate(activity: TripActivity) {
-    if (activity.latitude === null || activity.longitude === null) return;
-    const label = encodeURIComponent(activity.locationName);
-    const url = Platform.select({
-      ios: `http://maps.apple.com/?daddr=${activity.latitude},${activity.longitude}&q=${label}`,
-      android: `google.navigation:q=${activity.latitude},${activity.longitude}`,
-      default: `https://www.google.com/maps/dir/?api=1&destination=${activity.latitude},${activity.longitude}`,
-    });
-    if (url && await Linking.canOpenURL(url)) await Linking.openURL(url);
-  }
-
-  return (
-    <View style={[styles.wrap, { height }]}>
-      <MapView
-        style={StyleSheet.absoluteFill}
-        initialRegion={initialRegion(activities)}
-        showsUserLocation={showUserLocation && locationEnabled}
-        showsMyLocationButton={false}
-        mapType="standard"
-      >
-        {plotted.length > 1 ? <Polyline coordinates={coordinates(plotted)} strokeColor="#7257EC" strokeWidth={4} /> : null}
-        {plotted.map((activity, index) => (
-          <Marker
-            key={activity.id}
-            coordinate={{ latitude: activity.latitude as number, longitude: activity.longitude as number }}
-            title={`${index + 1}. ${activity.title}`}
-            description={activity.locationName}
-            pinColor={activity.id === selectedActivityId ? "#FF6F91" : "#7257EC"}
-            onPress={() => onSelectActivity?.(activity.id)}
-            onCalloutPress={() => void navigate(activity)}
-          />
-        ))}
-      </MapView>
-      {!plotted.length ? <View pointerEvents="none" style={styles.empty}><Text style={styles.emptyTitle}>No mapped activities yet</Text><Text style={styles.emptyText}>Add a location to an itinerary activity to place it on this map.</Text></View> : null}
-      {showUserLocation ? <Pressable disabled={permissionBusy} onPress={() => void enableLocation()} style={styles.locationButton}><Text style={styles.locationText}>{locationEnabled ? "Location on" : permissionBusy ? "Checking…" : "Use my location"}</Text></Pressable> : null}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  wrap: { width: "100%", overflow: "hidden", borderRadius: 24, backgroundColor: "#E9ECF7", borderWidth: 1, borderColor: "#E4E6F1" },
-  empty: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center", padding: 28, backgroundColor: "rgba(248,249,255,0.88)" },
-  emptyTitle: { color: "#17223C", fontSize: 16, fontWeight: "900" },
-  emptyText: { marginTop: 7, maxWidth: 250, textAlign: "center", color: "#758097", fontSize: 11, lineHeight: 17, fontWeight: "600" },
-  locationButton: { position: "absolute", right: 12, bottom: 12, paddingHorizontal: 13, paddingVertical: 10, borderRadius: 14, backgroundColor: "rgba(20,29,52,0.9)" },
-  locationText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900" },
-});
+function makeHtml(activities:TripMapSurfaceProps["activities"],selected:string|null|undefined){const pts=activities.filter(a=>a.latitude!=null&&a.longitude!=null).map(a=>({...a,selected:a.id===selected,emoji:emojiFor(a.category)}));const data=JSON.stringify(pts).replace(/</g,"\\u003c");return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>*{box-sizing:border-box}html,body,#map{width:100%;height:100%;margin:0}.leaflet-tile{filter:saturate(.9) brightness(1.04)}.marker{position:relative;width:46px;height:54px}.bubble{width:42px;height:42px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid #fff;box-shadow:0 8px 18px rgba(36,43,55,.22)}.marker:after{content:'';position:absolute;left:17px;top:36px;width:11px;height:11px;background:#fff;transform:rotate(45deg)}.marker.sel .bubble{box-shadow:0 0 0 6px rgba(45,99,230,.14),0 9px 20px rgba(36,43,55,.22)}.fit,.locate{position:absolute;z-index:900;border:0;background:rgba(255,255,255,.96);box-shadow:0 8px 18px rgba(36,43,55,.16)}.fit{right:12px;top:12px;height:36px;border-radius:18px;padding:0 12px;font-weight:800}.locate{right:12px;bottom:12px;width:42px;height:42px;border-radius:21px;font-size:20px}</style></head><body><div id="map"></div><button class="fit" id="fit">Fit route</button><button class="locate" id="locate">⌖</button><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>const pts=${data};const map=L.map('map',{zoomControl:true,attributionControl:false,scrollWheelZoom:true,touchZoom:true});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);const ll=[];pts.forEach(p=>{ll.push([p.latitude,p.longitude]);const icon=L.divIcon({className:'',html:'<div class="marker '+(p.selected?'sel':'')+'"><div class="bubble">'+p.emoji+'</div></div>',iconSize:[46,54],iconAnchor:[23,50]});const m=L.marker([p.latitude,p.longitude],{icon}).addTo(map);m.bindPopup('<b>'+p.title+'</b><br><small>'+p.locationName+'</small>');m.on('click',()=>window.ReactNativeWebView.postMessage(JSON.stringify({type:'trava-select',id:p.id})));if(p.selected)setTimeout(()=>m.openPopup(),80)});if(ll.length>1)L.polyline(ll,{color:'#6f8fdc',weight:3,dashArray:'7 7'}).addTo(map);function fit(){if(ll.length===1)map.setView(ll[0],14);else if(ll.length>1)map.fitBounds(L.latLngBounds(ll).pad(.22),{maxZoom:14});else map.setView([35.6812,139.7671],11)}fit();document.getElementById('fit').onclick=fit;let user=null;if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{user=L.circleMarker([p.coords.latitude,p.coords.longitude],{radius:8,color:'#fff',weight:4,fillColor:'#2f6df4',fillOpacity:1}).addTo(map)},()=>{});document.getElementById('locate').onclick=()=>user?map.setView(user.getLatLng(),15):fit();setTimeout(()=>map.invalidateSize(),100)</script></body></html>`}
+function emojiFor(category:string){const k=String(category||'').toLowerCase();if(k.includes('food'))return'🍜';if(k.includes('stay')||k.includes('hotel'))return'🛏️';if(k.includes('flight')||k.includes('airport'))return'✈️';if(k.includes('transport'))return'🚕';if(k.includes('shop'))return'🛍️';if(k.includes('meeting')||k.includes('work'))return'💼';if(k.includes('sight'))return'📸';return'📍'}
+const s=StyleSheet.create({wrap:{overflow:"hidden",borderRadius:27,borderWidth:1,borderColor:"#E2E5EA",backgroundColor:"#EEF2F5"},web:{flex:1,backgroundColor:"transparent"}});
