@@ -1,8 +1,8 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import { type Href, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -19,25 +19,119 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { sendHomeInvitation, submitHomeFeedback } from "../api/home.api";
 import { AgencyCard } from "../components/AgencyCard";
 import { HomeHeader } from "../components/HomeHeader";
+import { TravelCommerceModals } from "../components/TravelCommerceModals";
 import {
   InviteFriendModal,
-  ListingDetailsModal,
-  NotificationsModal,
+NotificationsModal,
 } from "../components/HomeModals";
 import { QuickActions, type HomeQuickActionKey } from "../components/QuickActions";
 import { SectionHeader } from "../components/SectionHeader";
 import { TourPackageCard } from "../components/TourPackageCard";
 import { TravelFootprintCard } from "../components/TravelFootprintCard";
 import { UpcomingTripCard } from "../components/UpcomingTripCard";
+import { TravelAgencyPromoBanner } from "../components/TravelAgencyPromoBanner";
 import { useHomeDashboard } from "../hooks/useHomeDashboard";
 import { useHomeFavorites } from "../hooks/useHomeFavorites";
 import type { HomeListing } from "../types/home.types";
 import { savePendingInquiry } from "../utils/home-storage";
 
+// TRAVA_HOME_CHAT_REFINEMENT_PATCH_V1
 type HomeView = "dashboard" | "tours" | "agencies";
 
 function typedHref(path: string): Href {
   return path as Href;
+}
+
+function LoadingAccentWord({ children }: { children: string }) {
+  return (
+    <Text style={styles.loadingTitle}>
+      <Text style={styles.loadingTitleAccentBlue}>{children.slice(0, Math.ceil(children.length / 2))}</Text>
+      <Text style={styles.loadingTitleAccentPink}>{children.slice(Math.ceil(children.length / 2))}</Text>
+    </Text>
+  );
+}
+
+function HomeLoadingSplash() {
+  return (
+    <SafeAreaView style={styles.loadingScreen}>
+      <StatusBar style="dark" />
+      <LinearGradient
+        colors={["#F8F6FF", "#FAEFF7", "#F3F7FF"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      <View style={styles.loadingScene}>
+        <View style={styles.loadingArtwork}>
+          <View style={[styles.loadingOrbitRing, styles.loadingOrbitRingOuter]} />
+          <View style={[styles.loadingOrbitRing, styles.loadingOrbitRingMiddle]} />
+          <View style={[styles.loadingOrbitRing, styles.loadingOrbitRingInner]} />
+
+          <LinearGradient
+            colors={["#FFB95C", "#E96CFF", "#6E83FF"]}
+            start={{ x: 0.2, y: 1 }}
+            end={{ x: 0.8, y: 0 }}
+            style={styles.loadingStar}
+          >
+            <View style={styles.loadingStarCutout} />
+          </LinearGradient>
+
+          <View style={[styles.loadingIconBubble, styles.bubblePlane]}>
+            <Text style={styles.loadingBubbleText}>✈</Text>
+          </View>
+          <View style={[styles.loadingIconBubble, styles.bubblePin]}>
+            <Text style={styles.loadingBubbleText}>⌖</Text>
+          </View>
+          <View style={[styles.loadingIconBubble, styles.bubbleCalendar]}>
+            <Text style={styles.loadingBubbleText}>21</Text>
+          </View>
+          <View style={[styles.loadingIconBubble, styles.bubbleTicket]}>
+            <Text style={styles.loadingBubbleEmoji}>🎫</Text>
+          </View>
+          <View style={[styles.loadingIconBubble, styles.bubbleGlobe]}>
+            <Text style={styles.loadingBubbleEmoji}>🌍</Text>
+          </View>
+          <View style={[styles.loadingIconBubble, styles.bubbleLuggage]}>
+            <Text style={styles.loadingBubbleEmoji}>🧳</Text>
+          </View>
+
+          <View style={[styles.loadingAvatarBubble, styles.avatarLeft]}>
+            <Text style={styles.loadingAvatarEmoji}>🙂</Text>
+          </View>
+          <View style={[styles.loadingAvatarBubble, styles.avatarRight]}>
+            <Text style={styles.loadingAvatarEmoji}>😎</Text>
+          </View>
+          <View style={[styles.loadingAvatarBubble, styles.avatarBottom]}>
+            <Text style={styles.loadingAvatarEmoji}>😊</Text>
+          </View>
+
+          <View style={[styles.loadingSparkle, styles.sparkleOne]} />
+          <View style={[styles.loadingSparkle, styles.sparkleTwo]} />
+          <View style={[styles.loadingSparkle, styles.sparkleThree]} />
+          <View style={[styles.loadingCloud, styles.cloudLeft]} />
+          <View style={[styles.loadingCloud, styles.cloudRight]} />
+        </View>
+
+        <Text style={styles.loadingBrand}>TRAVA ✦</Text>
+        <Text style={styles.loadingTitle}>Preparing your</Text>
+        <LoadingAccentWord>journey</LoadingAccentWord>
+        <Text style={styles.loadingCopy}>Loading your next adventure...</Text>
+
+        <View style={styles.loadingProgressShell}>
+          <LinearGradient
+            colors={["#54A7FF", "#C16BFF", "#FFB27A"]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.loadingProgressFill}
+          />
+          <View style={styles.loadingProgressSparkle}>
+            <Text style={styles.loadingProgressSparkleText}>✦</Text>
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
 }
 
 export function HomeScreen() {
@@ -112,12 +206,31 @@ export function HomeScreen() {
   }
 
   function handleQuickAction(action: HomeQuickActionKey) {
-    const trip = data?.upcomingTrip;
-    if (!trip) {
+    if (action === "create-trip") {
       router.push(typedHref("/trip/create"));
       return;
     }
-    router.push(typedHref(`/trip/${encodeURIComponent(String(trip.id))}/${action}`));
+
+    if (action === "destinations") {
+      router.push(typedHref("/(traveler)/(tabs)/explore"));
+      return;
+    }
+
+    if (action === "budget") {
+      if (data?.upcomingTrip) {
+        router.push(typedHref(`/trip/${encodeURIComponent(String(data.upcomingTrip.id))}/budget`));
+      } else {
+        router.push(typedHref("/trip/create"));
+      }
+      return;
+    }
+
+    if (data?.upcomingTrip) {
+      setInviteStatus(null);
+      setInviteOpen(true);
+    } else {
+      router.push(typedHref("/trip/create"));
+    }
   }
 
   async function submitInvite() {
@@ -171,29 +284,52 @@ export function HomeScreen() {
     }
   }
 
+  // TRAVA_STRICT_HOME_COMMERCE_FIX_V2
   async function continueFromListing() {
     if (!selectedListing) return;
+
     const listing = selectedListing;
     await savePendingInquiry(listing);
-    setSelectedListing(null);
+
+    const agencyId = listing.type === "agency"
+      ? String(listing.item.id)
+      : String(listing.item.agencyId ?? `package-${listing.item.id}`);
+    const agencyName = listing.type === "agency"
+      ? listing.item.name
+      : data?.agencies.find((agency) => String(agency.id) === String(listing.item.agencyId))?.name || "Travel Agency";
+    const travelerId = user?.id || "traveler";
+    const roomId = `agency-${agencyId}-traveler-${travelerId}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+
+    const params: Array<[string, string]> = [
+      ["agencyId", agencyId],
+      ["agencyName", agencyName],
+      ["travelerId", travelerId],
+      ["travelerName", displayName],
+    ];
 
     if (listing.type === "tour") {
-      router.push(typedHref(`/package/${encodeURIComponent(String(listing.item.id))}`));
-      return;
+      params.push(
+        ["packageId", String(listing.item.id)],
+        ["packageTitle", listing.item.title],
+        ["packagePrice", String(listing.item.price)],
+        ["currencyCode", listing.item.currencyCode],
+        ["packageDays", String(listing.item.durationDays)],
+        ["packageNights", String(listing.item.durationNights)],
+        ["destination", listing.item.destination || listing.item.country || ""],
+        ["packageImage", listing.item.imageUrl || ""],
+      );
     }
 
-    router.push(typedHref(`/agency/${encodeURIComponent(String(listing.item.id))}`));
+    const query = params
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join("&");
+
+    setSelectedListing(null);
+    router.push(typedHref(`/chat/${encodeURIComponent(roomId)}?${query}`));
   }
 
   if (dashboard.isLoading && !data) {
-    return (
-      <SafeAreaView style={styles.loadingScreen}>
-        <StatusBar style="dark" />
-        <ActivityIndicator size="large" color="#7558F0" />
-        <Text style={styles.loadingTitle}>Preparing your dashboard</Text>
-        <Text style={styles.loadingCopy}>Syncing trips, agencies, and travel insights.</Text>
-      </SafeAreaView>
-    );
+    return <HomeLoadingSplash />;
   }
 
   if (!data) {
@@ -291,7 +427,7 @@ export function HomeScreen() {
           </View>
         </ScrollView>
 
-        <ListingDetailsModal
+        <TravelCommerceModals
           comment={comment}
           favorite={selectedListing ? favorites.isFavorite(selectedListing) : false}
           feedbackStatus={feedbackStatus}
@@ -304,6 +440,8 @@ export function HomeScreen() {
           onToggleFavorite={() => selectedListing && favorites.toggleFavorite(selectedListing)}
           rating={rating}
           submittingFeedback={submittingFeedback}
+          relatedTours={data?.tours ?? []}
+          onOpenTour={(tour) => openListing({ type: "tour", item: tour })}
         />
       </SafeAreaView>
     );
@@ -322,6 +460,7 @@ export function HomeScreen() {
             name={displayName}
             notificationCount={data.notifications.length}
             onNotificationsPress={() => setNotificationsOpen(true)}
+            onMessagesPress={() => router.push(typedHref("/(traveler)/(tabs)/messages"))}
             onProfilePress={() => router.push(typedHref("/(traveler)/(tabs)/profile"))}
           />
 
@@ -337,7 +476,6 @@ export function HomeScreen() {
               </Text>
             </View>
           ) : null}
-
           <TravelFootprintCard userId={user?.id} />
 
           <SectionHeader
@@ -395,6 +533,8 @@ export function HomeScreen() {
           ) : (
             <View style={styles.inlineEmpty}><Text style={styles.inlineEmptyText}>No active travel agencies are available yet.</Text></View>
           )}
+          <TravelAgencyPromoBanner onPress={() => openDirectory("agencies")} />
+          
         </View>
       </ScrollView>
 
@@ -417,7 +557,7 @@ export function HomeScreen() {
         trip={data.upcomingTrip}
         visible={inviteOpen}
       />
-      <ListingDetailsModal
+      <TravelCommerceModals
         comment={comment}
         favorite={selectedListing ? favorites.isFavorite(selectedListing) : false}
         feedbackStatus={feedbackStatus}
@@ -430,25 +570,63 @@ export function HomeScreen() {
         onToggleFavorite={() => selectedListing && favorites.toggleFavorite(selectedListing)}
         rating={rating}
         submittingFeedback={submittingFeedback}
+        relatedTours={data?.tours ?? []}
+        onOpenTour={(tour) => openListing({ type: "tour", item: tour })}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F8F9FF" },
+  safe: { flex: 1, backgroundColor: "#FFFFFF" },
   scrollContent: { paddingTop: 20, paddingBottom: 132 },
   directoryContent: { paddingTop: 15, paddingBottom: 80 },
   contentWidth: { width: "100%", maxWidth: 1000, alignSelf: "center" },
-  statusBanner: { marginTop: 15, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 13, paddingVertical: 11, borderRadius: 14, backgroundColor: "#F1EEFF", borderWidth: 1, borderColor: "#E2DCFF" },
-  statusBannerIcon: { color: "#6A51DD", fontSize: 16, fontWeight: "900" },
-  statusBannerText: { flex: 1, color: "#5D54A8", fontSize: 11, lineHeight: 16, fontWeight: "700" },
+  statusBanner: { marginTop: 15, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 13, paddingVertical: 11, borderRadius: 14, backgroundColor: "#F5F5F6", borderWidth: 1, borderColor: "#E0E1E3" },
+  statusBannerIcon: { color: "#555A61", fontSize: 16, fontWeight: "900" },
+  statusBannerText: { flex: 1, color: "#666B72", fontSize: 11, lineHeight: 16, fontWeight: "700" },
   horizontalList: { gap: 12, paddingBottom: 10, paddingRight: 3 },
   inlineEmpty: { minHeight: 104, alignItems: "center", justifyContent: "center", padding: 18, borderWidth: 1, borderStyle: "dashed", borderColor: "#DDE2EE", borderRadius: 18, backgroundColor: "rgba(255,255,255,0.78)" },
   inlineEmptyText: { color: "#76839B", fontSize: 12, lineHeight: 18, textAlign: "center", fontWeight: "600" },
-  loadingScreen: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, backgroundColor: "#F8F9FF" },
-  loadingTitle: { marginTop: 14, color: "#17233E", fontSize: 20, lineHeight: 25, textAlign: "center", fontWeight: "900" },
-  loadingCopy: { maxWidth: 340, marginTop: 6, color: "#76839B", fontSize: 13, lineHeight: 19, textAlign: "center", fontWeight: "600" },
+  loadingScreen: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24, backgroundColor: "#FFFFFF" },
+  loadingScene: { width: "100%", maxWidth: 430, alignItems: "center", justifyContent: "center", paddingVertical: 24 },
+  loadingArtwork: { width: 320, height: 408, alignItems: "center", justifyContent: "center", position: "relative" },
+  loadingOrbitRing: { position: "absolute", borderWidth: 1.2, borderColor: "rgba(255,255,255,0.95)", opacity: 0.9 },
+  loadingOrbitRingOuter: { width: 300, height: 300, borderRadius: 150 },
+  loadingOrbitRingMiddle: { width: 228, height: 228, borderRadius: 114 },
+  loadingOrbitRingInner: { width: 154, height: 154, borderRadius: 77 },
+  loadingStar: { width: 74, height: 74, alignItems: "center", justifyContent: "center", transform: [{ rotate: "45deg" }], borderRadius: 22, shadowColor: "#C570FF", shadowOpacity: 0.24, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } },
+  loadingStarCutout: { width: 18, height: 18, backgroundColor: "rgba(255,255,255,0.88)", borderRadius: 5 },
+  loadingIconBubble: { position: "absolute", alignItems: "center", justifyContent: "center", borderRadius: 26, borderWidth: 1, borderColor: "rgba(255,255,255,0.9)", backgroundColor: "rgba(255,255,255,0.74)", shadowColor: "#B7A4E9", shadowOpacity: 0.16, shadowRadius: 18, shadowOffset: { width: 0, height: 10 } },
+  bubblePlane: { width: 86, height: 62, top: 42, left: 22, transform: [{ rotate: "-14deg" }] },
+  bubblePin: { width: 76, height: 76, top: 12, left: 124, borderRadius: 38 },
+  bubbleCalendar: { width: 76, height: 76, top: 72, right: 26, borderRadius: 28 },
+  bubbleTicket: { width: 90, height: 62, bottom: 96, left: 24, transform: [{ rotate: "-16deg" }] },
+  bubbleGlobe: { width: 78, height: 78, bottom: 54, left: 121, borderRadius: 39 },
+  bubbleLuggage: { width: 82, height: 92, bottom: 84, right: 20, borderRadius: 30 },
+  loadingBubbleText: { color: "#7B58F3", fontSize: 30, lineHeight: 34, fontWeight: "900" },
+  loadingBubbleEmoji: { fontSize: 30 },
+  loadingAvatarBubble: { position: "absolute", width: 66, height: 66, alignItems: "center", justifyContent: "center", borderRadius: 33, borderWidth: 2, borderColor: "rgba(255,255,255,0.92)", backgroundColor: "rgba(255,255,255,0.82)", shadowColor: "#B7A4E9", shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
+  avatarLeft: { left: 8, top: 192 },
+  avatarRight: { right: 6, top: 198 },
+  avatarBottom: { bottom: 2, left: 138 },
+  loadingAvatarEmoji: { fontSize: 29 },
+  loadingSparkle: { position: "absolute", width: 8, height: 8, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.96)", shadowColor: "#F9B6FF", shadowOpacity: 0.72, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
+  sparkleOne: { left: 64, top: 154 },
+  sparkleTwo: { right: 56, top: 136 },
+  sparkleThree: { bottom: 126, left: 92 },
+  loadingCloud: { position: "absolute", width: 34, height: 16, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.76)" },
+  cloudLeft: { left: -4, top: 112 },
+  cloudRight: { right: -2, bottom: 150 },
+  loadingBrand: { marginTop: -4, color: "#715FE5", fontSize: 22, letterSpacing: 6, fontWeight: "800" },
+  loadingTitle: { marginTop: 12, color: "#121A34", fontSize: 32, lineHeight: 38, textAlign: "center", fontWeight: "900", letterSpacing: -0.8 },
+  loadingTitleAccentBlue: { color: "#6A8EFF" },
+  loadingTitleAccentPink: { color: "#F26BAA" },
+  loadingCopy: { maxWidth: 340, marginTop: 10, color: "#7A86A0", fontSize: 16, lineHeight: 22, textAlign: "center", fontWeight: "700" },
+  loadingProgressShell: { width: "100%", maxWidth: 320, height: 58, marginTop: 34, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", borderRadius: 29, backgroundColor: "#11192F" },
+  loadingProgressFill: { position: "absolute", left: 16, right: 68, height: 18, borderRadius: 999 },
+  loadingProgressSparkle: { position: "absolute", right: 18, width: 34, height: 34, alignItems: "center", justifyContent: "center", borderRadius: 17, backgroundColor: "rgba(255,255,255,0.05)" },
+  loadingProgressSparkleText: { color: "#F384D0", fontSize: 19, fontWeight: "900" },
   errorIcon: { width: 44, height: 44, color: "#FFFFFF", backgroundColor: "#FF668E", borderRadius: 999, fontSize: 26, lineHeight: 44, textAlign: "center", fontWeight: "900" },
   retryButton: { marginTop: 18, minHeight: 46, alignItems: "center", justifyContent: "center", paddingHorizontal: 22, borderRadius: 14, backgroundColor: "#111B34" },
   retryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },
