@@ -8,7 +8,6 @@ EXCEPTION
   WHEN duplicate_object THEN NULL;
 END
 $$;
-
 CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email text,
@@ -22,7 +21,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email text;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name text NOT NULL DEFAULT 'New User';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url text;
@@ -33,7 +31,6 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS onboarding_completed boolea
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS verification_deferred boolean NOT NULL DEFAULT false;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
-
 CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -69,12 +66,10 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
 DROP TRIGGER IF EXISTS on_auth_user_created_trava_profile ON auth.users;
 CREATE TRIGGER on_auth_user_created_trava_profile
 AFTER INSERT OR UPDATE OF email, raw_user_meta_data ON auth.users
 FOR EACH ROW EXECUTE PROCEDURE public.handle_new_auth_user();
-
 -- Backfill profiles for existing email/password and Google users.
 INSERT INTO public.profiles (id, email, full_name, avatar_url, role)
 SELECT
@@ -89,7 +84,6 @@ SELECT
   END
 FROM auth.users u
 ON CONFLICT (id) DO NOTHING;
-
 CREATE OR REPLACE FUNCTION public.set_my_role(p_role public.user_role)
 RETURNS public.profiles
 LANGUAGE plpgsql
@@ -116,9 +110,7 @@ BEGIN
   RETURN result;
 END;
 $$;
-
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -141,7 +133,6 @@ BEGIN
   END IF;
 END
 $$;
-
 REVOKE ALL ON TABLE public.profiles FROM anon;
 REVOKE INSERT, DELETE ON TABLE public.profiles FROM authenticated;
 REVOKE UPDATE ON TABLE public.profiles FROM authenticated;
