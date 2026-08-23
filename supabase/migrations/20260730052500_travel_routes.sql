@@ -2,14 +2,12 @@
 -- This migration stores routes per authenticated traveler and derives all country data server-side.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
-
 CREATE TABLE IF NOT EXISTS public.travel_country_catalog (
   code text PRIMARY KEY CHECK (char_length(code) = 2 AND code = upper(code)),
   name text NOT NULL,
   latitude double precision NOT NULL CHECK (latitude BETWEEN -90 AND 90),
   longitude double precision NOT NULL CHECK (longitude BETWEEN -180 AND 180)
 );
-
 INSERT INTO public.travel_country_catalog (code, name, latitude, longitude)
 VALUES
   ('AE', 'United Arab Emirates', 24.0, 54.0),
@@ -252,7 +250,6 @@ ON CONFLICT (code) DO UPDATE SET
   name = EXCLUDED.name,
   latitude = EXCLUDED.latitude,
   longitude = EXCLUDED.longitude;
-
 CREATE TABLE IF NOT EXISTS public.travel_routes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -270,10 +267,8 @@ CREATE TABLE IF NOT EXISTS public.travel_routes (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT travel_routes_different_countries CHECK (origin_code <> destination_code)
 );
-
 CREATE INDEX IF NOT EXISTS travel_routes_user_date_idx
   ON public.travel_routes (user_id, traveled_at, created_at);
-
 CREATE OR REPLACE FUNCTION public.travel_haversine_km(
   origin_latitude double precision,
   origin_longitude double precision,
@@ -299,7 +294,6 @@ AS $$
     )
   )::numeric, 2);
 $$;
-
 CREATE OR REPLACE FUNCTION public.hydrate_travel_route()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -346,45 +340,37 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
 DROP TRIGGER IF EXISTS hydrate_travel_route_before_write ON public.travel_routes;
 CREATE TRIGGER hydrate_travel_route_before_write
 BEFORE INSERT OR UPDATE
 ON public.travel_routes
 FOR EACH ROW EXECUTE FUNCTION public.hydrate_travel_route();
-
 ALTER TABLE public.travel_country_catalog ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.travel_routes ENABLE ROW LEVEL SECURITY;
-
 DROP POLICY IF EXISTS travel_country_catalog_read ON public.travel_country_catalog;
 CREATE POLICY travel_country_catalog_read
 ON public.travel_country_catalog
 FOR SELECT TO authenticated
 USING (true);
-
 DROP POLICY IF EXISTS travel_routes_select_own ON public.travel_routes;
 CREATE POLICY travel_routes_select_own
 ON public.travel_routes
 FOR SELECT TO authenticated
 USING (user_id = auth.uid());
-
 DROP POLICY IF EXISTS travel_routes_insert_own ON public.travel_routes;
 CREATE POLICY travel_routes_insert_own
 ON public.travel_routes
 FOR INSERT TO authenticated
 WITH CHECK (user_id = auth.uid());
-
 DROP POLICY IF EXISTS travel_routes_delete_own ON public.travel_routes;
 CREATE POLICY travel_routes_delete_own
 ON public.travel_routes
 FOR DELETE TO authenticated
 USING (user_id = auth.uid());
-
 REVOKE ALL ON TABLE public.travel_country_catalog FROM anon;
 REVOKE ALL ON TABLE public.travel_routes FROM anon;
 REVOKE ALL ON TABLE public.travel_country_catalog FROM authenticated;
 REVOKE ALL ON TABLE public.travel_routes FROM authenticated;
 GRANT SELECT ON TABLE public.travel_country_catalog TO authenticated;
 GRANT SELECT, INSERT, DELETE ON TABLE public.travel_routes TO authenticated;
-
 NOTIFY pgrst, 'reload schema';
