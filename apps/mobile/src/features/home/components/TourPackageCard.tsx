@@ -12,79 +12,72 @@ interface TourPackageCardProps {
   width?: number;
 }
 
-export function TourPackageCard({
-  tour,
-  favorite,
-  onOpen,
-  onToggleFavorite,
-  width = 252,
-}: TourPackageCardProps) {
+export function TourPackageCard({ tour, favorite, onOpen, onToggleFavorite, width = 252 }: TourPackageCardProps) {
   return (
     <View style={[styles.card, { width }]}>
-      <View style={styles.imageWrap}>
-        {tour.imageUrl ? (
-          <Image source={{ uri: tour.imageUrl }} contentFit="cover" style={StyleSheet.absoluteFill} transition={170} />
-        ) : (
-          <View style={styles.imageFallback}>
-            <Text style={styles.fallbackIcon}>⌖</Text>
-          </View>
-        )}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={favorite ? "Remove from favorites" : "Add to favorites"}
-          onPress={onToggleFavorite}
-          style={({ pressed }: { pressed: boolean }) => [styles.favorite, favorite && styles.favoriteActive, pressed && styles.pressed]}
-        >
-          <Text style={[styles.favoriteGlyph, favorite && styles.favoriteGlyphActive]}>{favorite ? "♥" : "♡"}</Text>
-        </Pressable>
-      </View>
+      <View style={styles.content}>
+        <View style={styles.imageWrap}>
+          {tour.imageUrl ? (
+            <Image source={{ uri: tour.imageUrl }} contentFit="cover" style={StyleSheet.absoluteFill} transition={170} />
+          ) : (
+            <View style={styles.imageFallback}><Text style={styles.fallbackIcon}>⌖</Text></View>
+          )}
+        </View>
 
-      <View style={styles.body}>
-        <Text numberOfLines={2} style={styles.title}>{tour.title}</Text>
-        <Text numberOfLines={1} style={styles.meta}>
-          {tour.durationDays || 0} Days{tour.durationNights ? ` • ${tour.durationNights} Nights` : ""}
-        </Text>
-        <View style={styles.footer}>
-          <Text numberOfLines={1} adjustsFontSizeToFit style={styles.price}>
-            {formatMoney(tour.price, tour.currencyCode)}
+        <View style={styles.body}>
+          <Text numberOfLines={2} style={styles.title}>{tour.title}</Text>
+          <Text numberOfLines={1} style={styles.meta}>
+            {tour.durationDays || 0} Days{tour.durationNights ? ` • ${tour.durationNights} Nights` : ""}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Open ${tour.title}`}
-            onPress={onOpen}
-            style={({ pressed }: { pressed: boolean }) => [styles.openButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.openText}>Explore ›</Text>
-          </Pressable>
+          <View style={styles.footer}>
+            <Text numberOfLines={1} adjustsFontSizeToFit style={styles.price}>{formatMoney(tour.price, tour.currencyCode)}</Text>
+            <View style={styles.openButton}><Text style={styles.openText}>Explore ›</Text></View>
+          </View>
         </View>
       </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${tour.title}`}
+        onPress={onOpen}
+        style={({ pressed }) => [styles.cardHitArea, pressed && styles.cardHitAreaPressed]}
+      />
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={favorite ? "Remove from favorites" : "Add to favorites"}
+        onPress={onToggleFavorite}
+        style={({ pressed }) => [styles.favorite, favorite && styles.favoriteActive, pressed && styles.pressed]}
+      >
+        <Text style={[styles.favoriteGlyph, favorite && styles.favoriteGlyphActive]}>{favorite ? "♥" : "♡"}</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    position: "relative",
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "#E7EAF1",
     borderRadius: 21,
     backgroundColor: "#FFFFFF",
-    shadowColor: "#374063",
-    shadowOpacity: 0.09,
-    shadowRadius: 15,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
+    boxShadow: "0 12px 28px rgba(55,64,99,0.09)",
   },
+  content: { pointerEvents: "none" },
+  cardHitArea: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+    borderRadius: 21,
+  },
+  cardHitAreaPressed: { backgroundColor: "rgba(90,103,150,0.035)" },
   imageWrap: { height: 165, overflow: "hidden", backgroundColor: "#E8EBF7" },
-  imageFallback: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#EEF1FF",
-  },
+  imageFallback: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#EEF1FF" },
   fallbackIcon: { color: "#7558F0", fontSize: 32, fontWeight: "900" },
   favorite: {
     position: "absolute",
+    zIndex: 2,
     top: 10,
     right: 10,
     width: 38,
