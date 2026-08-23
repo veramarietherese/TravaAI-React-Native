@@ -1,48 +1,24 @@
-import * as Linking from "expo-linking";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-
+import { createElement, useEffect, useMemo, useRef } from "react";
+import { StyleSheet, View } from "react-native";
 import type { TripMapSurfaceProps } from "./TripMapSurface.types";
 
-export function TripMapSurface({ activities, selectedActivityId, onSelectActivity, height = 320 }: TripMapSurfaceProps) {
-  const plotted = activities.filter((item) => item.latitude !== null && item.longitude !== null);
-  return (
-    <View style={[styles.wrap, { minHeight: height }]}>
-      <View style={styles.grid} />
-      <View style={styles.header}><Text style={styles.title}>Native itinerary map</Text><Text style={styles.subtitle}>Open a saved stop in your system maps for turn-by-turn directions.</Text></View>
-      <View style={styles.list}>
-        {plotted.map((activity, index) => (
-          <View key={activity.id} style={[styles.stop, selectedActivityId === activity.id && styles.stopActive]}>
-            <Pressable accessibilityRole="button" onPress={() => onSelectActivity?.(activity.id)} style={styles.stopMain}>
-              <View style={styles.marker}><Text style={styles.markerText}>{index + 1}</Text></View>
-              <View style={styles.copy}><Text style={styles.stopTitle}>{activity.title}</Text><Text style={styles.stopPlace}>{activity.locationName}</Text></View>
-            </Pressable>
-            <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${activity.latitude},${activity.longitude}`)} style={styles.navigate}><Text style={styles.navigateText}>Navigate</Text></Pressable>
-          </View>
-        ))}
-        {!plotted.length ? <View style={styles.empty}><Text style={styles.emptyTitle}>No mapped activities yet</Text><Text style={styles.emptyText}>Add a searched location to an itinerary activity.</Text></View> : null}
-      </View>
-    </View>
-  );
+type Frame = { contentWindow?: { postMessage(message: unknown, targetOrigin: string): void } | null };
+
+export function TripMapSurface({ activities, selectedActivityId, onSelectActivity, height = 360 }: TripMapSurfaceProps) {
+  const frameRef = useRef<Frame | null>(null);
+  const html = useMemo(() => makeMapHtml(activities, selectedActivityId), [activities, selectedActivityId]);
+  useEffect(() => { const fn=(event:MessageEvent)=>{ if(event.source!==frameRef.current?.contentWindow)return; const p=event.data as {type?:string;id?:string}; if(p?.type==="trava-select"&&p.id) onSelectActivity?.(p.id);}; window.addEventListener("message",fn); return()=>window.removeEventListener("message",fn); },[onSelectActivity]);
+  return <View style={[styles.wrap,{height}]}>{createElement("iframe",{ref:frameRef as never,title:"Interactive TRAVA itinerary map",srcDoc:html,sandbox:"allow-scripts allow-same-origin",style:{width:"100%",height:"100%",border:0,display:"block",background:"#eef2f5"}})}</View>;
 }
 
-const styles = StyleSheet.create({
-  wrap: { width: "100%", overflow: "hidden", borderRadius: 24, backgroundColor: "#EEF1FF", borderWidth: 1, borderColor: "#E0E4F4", padding: 18 },
-  grid: { ...StyleSheet.absoluteFill, opacity: 0.18, backgroundColor: "#DCE3FF" },
-  header: { zIndex: 1 },
-  title: { color: "#17223C", fontSize: 17, fontWeight: "900" },
-  subtitle: { marginTop: 4, color: "#748097", fontSize: 10, lineHeight: 15, fontWeight: "600" },
-  list: { zIndex: 1, marginTop: 16, gap: 8 },
-  stop: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 10, padding: 10, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.93)", borderWidth: 1, borderColor: "#E7E9F3" },
-  stopMain: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10 },
-  stopActive: { borderColor: "#7257EC", backgroundColor: "#F6F3FF" },
-  marker: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#7257EC" },
-  markerText: { color: "#FFFFFF", fontSize: 11, fontWeight: "900" },
-  copy: { flex: 1, minWidth: 0 },
-  stopTitle: { color: "#17223C", fontSize: 12, fontWeight: "900" },
-  stopPlace: { marginTop: 3, color: "#78849A", fontSize: 10, fontWeight: "600" },
-  navigate: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 11, backgroundColor: "#17223C" },
-  navigateText: { color: "#FFFFFF", fontSize: 9, fontWeight: "900" },
-  empty: { paddingVertical: 40, alignItems: "center" },
-  emptyTitle: { color: "#17223C", fontSize: 15, fontWeight: "900" },
-  emptyText: { marginTop: 6, color: "#78849A", fontSize: 10, fontWeight: "600" },
-});
+function makeMapHtml(activities:TripMapSurfaceProps["activities"], selected:string|null|undefined){
+  const points=activities.filter(a=>a.latitude!=null&&a.longitude!=null).map(a=>({...a,selected:a.id===selected,emoji:emojiFor(a.category)}));
+  const data=JSON.stringify(points).replace(/</g,"\\u003c");
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>
+*{box-sizing:border-box}html,body,#map{width:100%;height:100%;margin:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#eef2f5;overflow:hidden}.leaflet-container{background:#eef2f5}.leaflet-tile{filter:saturate(.9) brightness(1.04) contrast(.96)}.leaflet-control-zoom{border:0!important;border-radius:14px!important;overflow:hidden;box-shadow:0 8px 22px rgba(41,50,66,.16)!important}.leaflet-control-zoom a{border:0!important;background:rgba(255,255,255,.96)!important;color:#20242b!important}.leaflet-control-attribution{font-size:8px!important;background:rgba(255,255,255,.82)!important}.marker{position:relative;width:48px;height:56px}.bubble{width:44px;height:44px;border-radius:15px;background:linear-gradient(145deg,#fff,#f0f2f6);border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:25px;box-shadow:0 9px 22px rgba(37,45,60,.22)}.marker:after{content:'';position:absolute;left:18px;top:37px;width:12px;height:12px;background:#f2f3f6;transform:rotate(45deg);border-right:2px solid white;border-bottom:2px solid white}.marker.sel .bubble{transform:scale(1.08);box-shadow:0 0 0 6px rgba(45,99,230,.13),0 10px 24px rgba(37,45,60,.24)}.popupTitle{font-size:13px;font-weight:800;color:#161a22}.popupPlace{margin-top:3px;font-size:10px;color:#697385}.popupCat{display:inline-block;margin-top:7px;padding:4px 8px;border-radius:9px;background:#f1f3f6;font-size:9px;font-weight:800;color:#505969}.tool{position:absolute;z-index:900;border:0;background:rgba(255,255,255,.96);box-shadow:0 8px 20px rgba(38,48,66,.16);cursor:pointer;color:#20242a}.fit{right:14px;top:14px;height:38px;padding:0 13px;border-radius:19px;font-size:11px;font-weight:800}.locate{right:14px;bottom:14px;width:44px;height:44px;border-radius:22px;font-size:20px}.hint{position:absolute;left:14px;bottom:14px;z-index:900;padding:8px 11px;border-radius:14px;background:rgba(255,255,255,.94);box-shadow:0 8px 18px rgba(38,48,66,.12);font-size:10px;font-weight:800;color:#4d5667}
+</style></head><body><div id="map"></div><button id="fit" class="tool fit">Fit route</button><button id="locate" class="tool locate">⌖</button><div class="hint">Drag · zoom · tap an icon</div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
+const pts=${data};const map=L.map('map',{zoomControl:true,attributionControl:true,scrollWheelZoom:true,doubleClickZoom:true,dragging:true,touchZoom:true,minZoom:2});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);const ll=[];const markers=[];pts.forEach(p=>{ll.push([p.latitude,p.longitude]);const icon=L.divIcon({className:'',html:'<div class="marker '+(p.selected?'sel':'')+'"><div class="bubble">'+p.emoji+'</div></div>',iconSize:[48,56],iconAnchor:[24,52],popupAnchor:[0,-46]});const m=L.marker([p.latitude,p.longitude],{icon,riseOnHover:true}).addTo(map);m.bindPopup('<div class="popupTitle">'+esc(p.title)+'</div><div class="popupPlace">'+esc(p.locationName)+'</div><div class="popupCat">'+esc(p.category)+'</div>');m.on('click',()=>parent.postMessage({type:'trava-select',id:p.id},'*'));if(p.selected)setTimeout(()=>m.openPopup(),80);markers.push(m)});if(ll.length>1){L.polyline(ll,{color:'#fff',weight:7,opacity:.9,lineCap:'round'}).addTo(map);L.polyline(ll,{color:'#6f8fdc',weight:3,opacity:.9,dashArray:'7 7',lineCap:'round'}).addTo(map)}function fit(){if(ll.length===1)map.setView(ll[0],14);else if(ll.length>1)map.fitBounds(L.latLngBounds(ll).pad(.22),{maxZoom:14});else map.setView([35.6812,139.7671],11)}fit();document.getElementById('fit').onclick=fit;let user=null;if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{const c=[pos.coords.latitude,pos.coords.longitude];user=L.circleMarker(c,{radius:8,color:'#fff',weight:4,fillColor:'#2f6df4',fillOpacity:1}).addTo(map)},()=>{}, {enableHighAccuracy:false,timeout:5000,maximumAge:300000})}document.getElementById('locate').onclick=()=>{if(user)map.setView(user.getLatLng(),15);else fit()};setTimeout(()=>map.invalidateSize(),80);function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+</script></body></html>`;
+}
+function emojiFor(category:string){const k=String(category||'').toLowerCase();if(k.includes('food'))return'🍜';if(k.includes('stay')||k.includes('hotel'))return'🛏️';if(k.includes('flight')||k.includes('airport'))return'✈️';if(k.includes('transport'))return'🚕';if(k.includes('shop'))return'🛍️';if(k.includes('meeting')||k.includes('work'))return'💼';if(k.includes('sight'))return'📸';return'📍'}
+const styles=StyleSheet.create({wrap:{overflow:"hidden",borderRadius:27,borderWidth:1,borderColor:"#E2E5EA",backgroundColor:"#EEF2F5",boxShadow:"0 16px 34px rgba(44,52,66,.10)"}});
