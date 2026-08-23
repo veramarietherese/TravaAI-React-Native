@@ -1,0 +1,4 @@
+To restore this backup manually, copy the backed-up files from:
+/Users/veramarie/Desktop/TravaAI-React-Native/.trava-patch-backups/home-chat-refinement-20260823-001344
+back into:
+/Users/veramarie/Desktop/TravaAI-React-Native/apps/mobile
