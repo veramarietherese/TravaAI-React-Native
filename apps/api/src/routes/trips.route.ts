@@ -74,8 +74,49 @@ const flightConfigSchema = z.object({
   flightDate: nullableDate.optional(),
 });
 
+async function resolveTravelerExact(identityRaw: unknown) {
+  const identity = typeof identityRaw === "string" ? identityRaw.trim() : "";
+  if (identity.length < 3 || identity.length > 320) return null;
+  const admin = getSupabaseAdmin();
+  const isEmail = identity.includes("@");
+  let result;
+  if (isEmail) {
+    result = await admin.from("profiles").select("id,email,full_name,avatar_url,role").eq("role", "traveler").eq("email", identity.toLowerCase()).limit(2);
+  } else {
+    // ilike is used only to allow case-insensitive matching. We still perform an
+    // exact normalized comparison below and never return prefix/partial matches.
+    result = await admin.from("profiles").select("id,email,full_name,avatar_url,role").eq("role", "traveler").ilike("full_name", identity).limit(6);
+  }
+  if (result.error) throw result.error;
+  const normalized = identity.toLocaleLowerCase();
+  const exact = (result.data ?? []).filter((person) => {
+    const candidate = String(isEmail ? person.email ?? "" : person.full_name ?? "").trim().toLocaleLowerCase();
+    return candidate === normalized;
+  });
+  // Ambiguous full names remain private rather than exposing a list of accounts.
+  if (exact.length !== 1) return null;
+  const person = exact[0];
+  return {
+    email: text(person.email) ?? "",
+    fullName: text(person.full_name) ?? text(person.email) ?? "TRAVA traveler",
+    avatarUrl: text(person.avatar_url),
+  };
+}
+
 export const tripsRouter = Router();
 tripsRouter.use(requireAuth, requireRole("traveler"));
+
+// Privacy-first collaborator lookup used before a new trip exists. This route
+// returns at most one account and only after an exact email/full-name match.
+tripsRouter.get("/member-directory/resolve", async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    requireRequestUserId(request.authUser?.id);
+    const person = await resolveTravelerExact(request.query.identity);
+    response.json({ data: person });
+  } catch (error) {
+    next(error);
+  }
+});
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -478,6 +519,21 @@ tripsRouter.get("/:tripId/members", async (request: Request, response: Response,
     const tripId = parse(uuidSchema, request.params.tripId);
     const access = await loadTripAccess(userId, tripId);
     response.json({ data: await loadMembers(tripId, String(access.trip.user_id)), permissions: { canManage: access.role === "owner" } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
+
+// Privacy-first exact collaborator resolver. No prefix suggestions are exposed.
+tripsRouter.get("/:tripId/members/resolve", async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    const userId = requireRequestUserId(request.authUser?.id);
+    const tripId = parse(uuidSchema, request.params.tripId);
+    await requireTripOwner(userId, tripId);
+    const person = await resolveTravelerExact(request.query.identity);
+    response.json({ data: person });
   } catch (error) {
     next(error);
   }
