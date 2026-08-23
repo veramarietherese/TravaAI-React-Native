@@ -12,7 +12,7 @@ export interface ExpenseInput {
   splitMethod: ExpenseSplitMethod;
   receiptStoragePath?: string | null;
   notes?: string | null;
-  splits: Array<{ userId: string; amount: number }>;
+  splits: { userId: string; amount: number }[];
 }
 
 export async function listExpenses(tripId: string): Promise<{ expenses: TripExpense[]; members: TripMember[]; canEditAll: boolean }> {
