@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { useTravelRoutes } from "../hooks/useTravelRoutes";
+import type { HomeTravelRoute } from "../types/home.types";
 import { TravelGlobeSurface } from "./TravelGlobeSurface";
 import type { TravelGlobeCommand } from "./TravelGlobeSurface.types";
 import { TravelRouteEditorModal } from "./TravelRouteEditorModal";
@@ -21,16 +22,55 @@ interface TravelFootprintCardProps {
 }
 
 type GlobeCommandType = "zoom-in" | "zoom-out" | "reset";
-
-const STAT_ITEMS = [
-  { key: "distance", icon: "◎", label: "Total Distance" },
-  { key: "flights", icon: "✈", label: "Flights Taken" },
-  { key: "countries", icon: "⌖", label: "Countries" },
-  { key: "days", icon: "◫", label: "Travel Days" },
-] as const;
+const STAT_ITEMS: Array<{ key: "distance" | "flights" | "countries" | "days"; glyph: string; label: string }> = [
+  { key: "distance", glyph: "◎", label: "Total Distance" },
+  { key: "flights", glyph: "✈︎", label: "Flights Taken" },
+  { key: "countries", glyph: "⌖", label: "Countries" },
+  { key: "days", glyph: "◫", label: "Travel Days" },
+];
 
 function formatDistance(value: number): string {
   return `${Math.round(value).toLocaleString("en-US")} km`;
+}
+
+function buildLatestJourney(routes: HomeTravelRoute[]) {
+  if (!routes.length) return null;
+
+  const ordered = routes.slice().sort((a, b) => {
+    const aCreated = Date.parse(a.createdAt || a.traveledAt);
+    const bCreated = Date.parse(b.createdAt || b.traveledAt);
+    return aCreated - bCreated;
+  });
+
+  const latest = ordered[ordered.length - 1];
+  const chain = [latest.originName, latest.destinationName];
+  let currentOriginCode = latest.originCode;
+  let legs = 1;
+
+  for (let index = ordered.length - 2; index >= 0; index -= 1) {
+    const candidate = ordered[index];
+    if (candidate.traveledAt !== latest.traveledAt) break;
+    if (candidate.destinationCode !== currentOriginCode) break;
+    chain.unshift(candidate.originName);
+    currentOriginCode = candidate.originCode;
+    legs += 1;
+  }
+
+  return {
+    label: chain.join(" → "),
+    legs,
+  };
+}
+
+function OutlineGlyph({ glyph, inverted = false, size = 20 }: { glyph: string; inverted?: boolean; size?: number }) {
+  return (
+    <Text
+      allowFontScaling={false}
+      style={[styles.outlineGlyph, { fontSize: size, lineHeight: size + 3 }, inverted && styles.outlineGlyphInverted]}
+    >
+      {glyph}
+    </Text>
+  );
 }
 
 function GlobeControl({
@@ -49,7 +89,7 @@ function GlobeControl({
       onPress={onPress}
       style={({ pressed }) => [styles.controlButton, pressed && styles.controlPressed]}
     >
-      <Text style={styles.controlGlyph}>{glyph}</Text>
+      <OutlineGlyph glyph={glyph} />
     </Pressable>
   );
 }
@@ -63,6 +103,8 @@ export function TravelFootprintCard({ userId }: TravelFootprintCardProps) {
   const [surfaceError, setSurfaceError] = useState<string | null>(null);
   const [command, setCommand] = useState<TravelGlobeCommand | null>(null);
   const commandIdRef = useRef(0);
+
+  const latestJourney = useMemo(() => buildLatestJourney(travelRoutes.routes), [travelRoutes.routes]);
 
   function sendCommand(type: GlobeCommandType) {
     commandIdRef.current += 1;
@@ -84,7 +126,7 @@ export function TravelFootprintCard({ userId }: TravelFootprintCardProps) {
   return (
     <>
       <LinearGradient
-        colors={["#EDF4FF", "#E7E9FF", "#FCE8F4"]}
+        colors={["#EAF4FF", "#F0EDFF", "#FDECF5"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.root}
@@ -101,7 +143,7 @@ export function TravelFootprintCard({ userId }: TravelFootprintCardProps) {
             onPress={() => setFullScreenOpen(true)}
             style={({ pressed }) => [styles.fullScreenButton, pressed && styles.controlPressed]}
           >
-            <Text style={styles.fullScreenGlyph}>⛶</Text>
+            <OutlineGlyph glyph="⛶" size={21} />
           </Pressable>
         </View>
 
@@ -115,12 +157,12 @@ export function TravelFootprintCard({ userId }: TravelFootprintCardProps) {
           <View style={styles.globeControls}>
             <GlobeControl label="Zoom in" glyph="+" onPress={() => sendCommand("zoom-in")} />
             <GlobeControl label="Zoom out" glyph="−" onPress={() => sendCommand("zoom-out")} />
-            <GlobeControl label="Reset globe" glyph="↺" onPress={() => sendCommand("reset")} />
+            <GlobeControl label="Reset globe" glyph="↻" onPress={() => sendCommand("reset")} />
           </View>
 
           {travelRoutes.isLoading ? (
             <View style={styles.loadingBadge}>
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color="#6248D8" />
               <Text style={styles.loadingText}>Loading routes</Text>
             </View>
           ) : null}
@@ -135,14 +177,12 @@ export function TravelFootprintCard({ userId }: TravelFootprintCardProps) {
         <View style={styles.routeSummaryRow}>
           <View style={styles.routeSummaryCopy}>
             <Text style={styles.routeSummaryTitle}>
-              {travelRoutes.routes.length
-                ? `${travelRoutes.routes.length} ${travelRoutes.routes.length === 1 ? "route" : "routes"} mapped`
-                : "Map your first flight"}
+              {latestJourney ? "Your latest journey" : "Map your first journey"}
             </Text>
             <Text numberOfLines={1} style={styles.routeSummarySubtitle}>
-              {travelRoutes.routes.length
-                ? `${travelRoutes.routes[0]?.originName ?? ""} → ${travelRoutes.routes[travelRoutes.routes.length - 1]?.destinationName ?? ""}`
-                : "Choose country A and country B to draw a visible route."}
+              {latestJourney
+                ? `${latestJourney.label} • ${latestJourney.legs} ${latestJourney.legs === 1 ? "leg" : "legs"}`
+                : "Choose one-way, multi-stop, or round trip and map it in seconds."}
             </Text>
           </View>
           <Pressable
@@ -150,8 +190,8 @@ export function TravelFootprintCard({ userId }: TravelFootprintCardProps) {
             onPress={() => setRouteEditorOpen(true)}
             style={({ pressed }) => [styles.manageButton, pressed && styles.managePressed]}
           >
-            <Text style={styles.manageGlyph}>＋</Text>
-            <Text style={styles.manageText}>Manage routes</Text>
+            <OutlineGlyph glyph="⌁" size={17} inverted />
+            <Text style={styles.manageText}>{travelRoutes.routes.length ? "Edit journey" : "Plan journey"}</Text>
           </Pressable>
         </View>
 
@@ -170,7 +210,7 @@ export function TravelFootprintCard({ userId }: TravelFootprintCardProps) {
         <View style={[styles.stats, compact && styles.statsCompact]}>
           {STAT_ITEMS.map((item) => (
             <View key={item.key} style={[styles.stat, compact && styles.statCompact]}>
-              <Text style={styles.statIcon}>{item.icon}</Text>
+              <OutlineGlyph glyph={item.glyph} size={18} />
               <Text numberOfLines={1} adjustsFontSizeToFit style={styles.statValue}>
                 {values[item.key]}
               </Text>
@@ -186,6 +226,13 @@ export function TravelFootprintCard({ userId }: TravelFootprintCardProps) {
         onRequestClose={() => setFullScreenOpen(false)}
       >
         <SafeAreaView style={styles.fullScreenSafe}>
+          <LinearGradient
+            colors={["#EDF6FF", "#F2EEFF", "#FDECF5"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+
           <View style={styles.fullScreenHeader}>
             <View style={styles.fullScreenHeaderCopy}>
               <Text style={styles.fullScreenEyebrow}>INTERACTIVE MAP</Text>
@@ -195,9 +242,9 @@ export function TravelFootprintCard({ userId }: TravelFootprintCardProps) {
               accessibilityRole="button"
               accessibilityLabel="Close full-screen globe"
               onPress={() => setFullScreenOpen(false)}
-              style={styles.closeButton}
+              style={({ pressed }) => [styles.closeButton, pressed && styles.controlPressed]}
             >
-              <Text style={styles.closeGlyph}>×</Text>
+              <OutlineGlyph glyph="×" size={25} />
             </Pressable>
           </View>
 
@@ -206,7 +253,7 @@ export function TravelFootprintCard({ userId }: TravelFootprintCardProps) {
             <View style={styles.fullScreenControls}>
               <GlobeControl label="Zoom in" glyph="+" onPress={() => sendCommand("zoom-in")} />
               <GlobeControl label="Zoom out" glyph="−" onPress={() => sendCommand("zoom-out")} />
-              <GlobeControl label="Reset globe" glyph="↺" onPress={() => sendCommand("reset")} />
+              <GlobeControl label="Reset globe" glyph="↻" onPress={() => sendCommand("reset")} />
             </View>
           </View>
 
@@ -225,7 +272,8 @@ export function TravelFootprintCard({ userId }: TravelFootprintCardProps) {
               }}
               style={({ pressed }) => [styles.fullScreenManage, pressed && styles.managePressed]}
             >
-              <Text style={styles.fullScreenManageText}>Add or search routes</Text>
+              <OutlineGlyph glyph="⌁" size={17} inverted />
+              <Text style={styles.fullScreenManageText}>Plan journey</Text>
             </Pressable>
           </View>
         </SafeAreaView>
@@ -271,30 +319,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.92)",
-    backgroundColor: "rgba(255,255,255,0.72)",
+    borderColor: "rgba(125,102,222,0.12)",
+    backgroundColor: "rgba(255,255,255,0.82)",
   },
-  fullScreenGlyph: { color: "#5C45CC", fontSize: 21, fontWeight: "900" },
   globePanel: {
-    height: 292,
+    height: 300,
     marginHorizontal: 12,
     overflow: "hidden",
     borderRadius: 24,
-    backgroundColor: "#111339",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.88)",
+    backgroundColor: "rgba(240,244,255,0.58)",
   },
   globeControls: { position: "absolute", top: 11, right: 11, gap: 7 },
   controlButton: {
-    width: 38,
-    height: 38,
+    width: 39,
+    height: 39,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 13,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.34)",
-    backgroundColor: "rgba(17,19,57,0.72)",
+    borderColor: "rgba(103,78,205,0.16)",
+    backgroundColor: "rgba(255,255,255,0.84)",
   },
-  controlPressed: { opacity: 0.68 },
-  controlGlyph: { color: "#FFFFFF", fontSize: 20, lineHeight: 23, fontWeight: "800" },
+  outlineGlyph: { color: "#6248D8", fontWeight: "500", textAlign: "center" },
+  outlineGlyphInverted: { color: "#FFFFFF" },
+  controlPressed: { opacity: 0.64 },
   loadingBadge: {
     position: "absolute",
     left: 12,
@@ -305,9 +355,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 7,
     borderRadius: 13,
-    backgroundColor: "rgba(17,19,57,0.76)",
+    borderWidth: 1,
+    borderColor: "rgba(116,92,220,0.10)",
+    backgroundColor: "rgba(255,255,255,0.88)",
   },
-  loadingText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
+  loadingText: { color: "#5F50A9", fontSize: 10, fontWeight: "700" },
   surfaceError: {
     position: "absolute",
     left: 12,
@@ -316,9 +368,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: "rgba(110,31,58,0.88)",
+    borderWidth: 1,
+    borderColor: "#FFD2DF",
+    backgroundColor: "rgba(255,244,248,0.94)",
   },
-  surfaceErrorText: { color: "#FFFFFF", fontSize: 10, lineHeight: 14, fontWeight: "700" },
+  surfaceErrorText: { color: "#A94B69", fontSize: 10, lineHeight: 14, fontWeight: "700" },
   routeSummaryRow: {
     minHeight: 70,
     paddingHorizontal: 16,
@@ -337,12 +391,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
+    gap: 6,
     borderRadius: 14,
     backgroundColor: "#7357EF",
   },
   managePressed: { opacity: 0.78 },
-  manageGlyph: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
   manageText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900" },
   dataError: {
     marginHorizontal: 16,
@@ -368,8 +421,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 22,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.92)",
-    backgroundColor: "rgba(255,255,255,0.88)",
+    borderColor: "rgba(255,255,255,0.94)",
+    backgroundColor: "rgba(255,255,255,0.86)",
   },
   statsCompact: { minHeight: 114, flexWrap: "wrap" },
   stat: {
@@ -388,10 +441,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#E4E7EF",
   },
-  statIcon: { color: "#7357EF", fontSize: 18, lineHeight: 21, fontWeight: "800" },
   statValue: { color: "#111D3A", fontSize: 14, lineHeight: 18, fontWeight: "900" },
   statLabel: { color: "#5F6D86", fontSize: 10, lineHeight: 13, fontWeight: "600" },
-  fullScreenSafe: { flex: 1, backgroundColor: "#0E1033" },
+  fullScreenSafe: { flex: 1, backgroundColor: "#F4F5FF" },
   fullScreenHeader: {
     minHeight: 74,
     paddingHorizontal: 18,
@@ -399,11 +451,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.15)",
+    borderBottomColor: "rgba(103,82,194,0.12)",
   },
   fullScreenHeaderCopy: { flex: 1, minWidth: 0 },
-  fullScreenEyebrow: { color: "#A89CFF", fontSize: 9, letterSpacing: 1.2, fontWeight: "800" },
-  fullScreenTitle: { marginTop: 3, color: "#FFFFFF", fontSize: 20, lineHeight: 25, fontWeight: "900" },
+  fullScreenEyebrow: { color: "#8069DE", fontSize: 9, letterSpacing: 1.2, fontWeight: "800" },
+  fullScreenTitle: { marginTop: 3, color: "#17233E", fontSize: 20, lineHeight: 25, fontWeight: "900" },
   closeButton: {
     width: 43,
     height: 43,
@@ -411,11 +463,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.24)",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(103,82,194,0.14)",
+    backgroundColor: "rgba(255,255,255,0.82)",
   },
-  closeGlyph: { color: "#FFFFFF", fontSize: 27, lineHeight: 29, fontWeight: "500" },
-  fullScreenGlobe: { flex: 1, minHeight: 0, backgroundColor: "#111339" },
+  fullScreenGlobe: { flex: 1, minHeight: 0, backgroundColor: "transparent" },
   fullScreenControls: { position: "absolute", right: 16, top: 16, gap: 8 },
   fullScreenFooter: {
     minHeight: 92,
@@ -425,16 +476,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(255,255,255,0.15)",
+    borderTopColor: "rgba(103,82,194,0.12)",
+    backgroundColor: "rgba(255,255,255,0.54)",
   },
   fullScreenStats: { flex: 1, minWidth: 0 },
-  fullScreenStatValue: { color: "#FFFFFF", fontSize: 18, fontWeight: "900" },
-  fullScreenStatLabel: { marginTop: 3, color: "#B7BED7", fontSize: 11, fontWeight: "600" },
+  fullScreenStatValue: { color: "#17233E", fontSize: 18, fontWeight: "900" },
+  fullScreenStatLabel: { marginTop: 3, color: "#6F7B91", fontSize: 11, fontWeight: "600" },
   fullScreenManage: {
     minHeight: 46,
     paddingHorizontal: 15,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 6,
     borderRadius: 15,
     backgroundColor: "#7357EF",
   },
