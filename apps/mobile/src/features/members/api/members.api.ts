@@ -2,9 +2,16 @@ import type { TripMember } from "@trava/shared";
 
 import { apiRequest } from "@/lib/api-client";
 
+export type ResolvedTraveler = { email: string; fullName: string; avatarUrl: string | null };
+
 export async function listTripMembers(tripId: string): Promise<{ members: TripMember[]; canManage: boolean }> {
   const result = await apiRequest<{ data: TripMember[]; permissions: { canManage: boolean } }>(`/api/trips/${tripId}/members`);
   return { members: result.data, canManage: result.permissions.canManage };
+}
+
+export async function resolveTripMemberIdentity(tripId: string, identity: string): Promise<ResolvedTraveler | null> {
+  const result = await apiRequest<{ data: ResolvedTraveler | null }>(`/api/trips/${tripId}/members/resolve?identity=${encodeURIComponent(identity)}`);
+  return result.data;
 }
 
 export async function inviteTripMember(tripId: string, email: string): Promise<string> {
