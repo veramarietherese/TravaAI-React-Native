@@ -1,0 +1,28 @@
+{
+  "name": "trava-ai",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start --workspace=@trava/mobile",
+    "android": "npm run android --workspace=@trava/mobile",
+    "ios": "npm run ios --workspace=@trava/mobile",
+    "mobile:web": "npm run web --workspace=@trava/mobile",
+    "api": "npm run dev --workspace=@trava/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "verify": "npm run typecheck && npm run lint",
+    "legacy:web:install": "npm --prefix legacy/web-vite install",
+    "legacy:web": "npm --prefix legacy/web-vite run dev"
+  },
+  "devDependencies": {
+    "supabase": "^2.110.0"
+  }
+}
