@@ -1,194 +1,51 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { TripStatus, TripSummary } from "@trava/shared";
+import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
+import type { TripSummary } from "@trava/shared";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { type Href, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { listTripInvitations, listTrips, respondToTripInvitation } from "../api/trips.api";
-import { TripCard } from "../components/TripCard";
+import { listTrips } from "../api/trips.api";
+import { FauxStatusBar, Glass, PX, Soft3DIcon, type TravaIconName } from "../components/TravaPixelUI";
 
-const FILTERS: Array<{ key: "all" | TripStatus; label: string }> = [
-  { key: "all", label: "All" },
-  { key: "upcoming", label: "Upcoming" },
-  { key: "ongoing", label: "Ongoing" },
-  { key: "completed", label: "Completed" },
-  { key: "draft", label: "Drafts" },
+const quick: Array<[string, string, string, TravaIconName, readonly [string, string], string, number]> = [
+  ["Itinerary", "View your plans", "itinerary", "calendar-outline", ["#FF8FA7", "#FFB5C4"], "#FFFFFF", -4],
+  ["Budget", "Track your budget", "budget", "wallet-outline", ["#6BD7A5", "#A6EBCB"], "#FFFFFF", 3],
+  ["Expenses", "Add & manage", "expenses", "receipt-outline", ["#FFB066", "#FFD0A2"], "#FFFFFF", -3],
+  ["Checklist", "Stay organized", "checklist", "list-outline", ["#A875EC", "#CFB0F5"], "#FFFFFF", 4],
+  ["Documents", "Travel docs", "documents", "folder-outline", ["#76B7EA", "#AED7F5"], "#FFFFFF", -3],
 ];
 
-export function TripsScreen() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const { width } = useWindowDimensions();
-  const [filter, setFilter] = useState<"all" | TripStatus>("all");
-  const [search, setSearch] = useState("");
-
-  const tripsQuery = useQuery({ queryKey: ["trips"], queryFn: listTrips });
-  const invitationsQuery = useQuery({ queryKey: ["trip-invitations"], queryFn: listTripInvitations });
-  const invitationMutation = useMutation({
-    mutationFn: ({ membershipId, action }: { membershipId: string; action: "accept" | "reject" }) => respondToTripInvitation(membershipId, action),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["trips"] }),
-        queryClient.invalidateQueries({ queryKey: ["trip-invitations"] }),
-        queryClient.invalidateQueries({ queryKey: ["home-dashboard"] }),
-      ]);
-    },
-    onError: (error) => Alert.alert("Invitation", error instanceof Error ? error.message : "Unable to update the invitation."),
-  });
-
-  const trips = tripsQuery.data ?? [];
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return trips.filter((trip) => {
-      if (filter !== "all" && trip.status !== filter) return false;
-      if (!q) return true;
-      return [trip.name, trip.destination, trip.travelStyle, trip.travelGroup]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(q));
-    });
-  }, [filter, search, trips]);
-
-  const grouped = useMemo(() => {
-    const sections: Array<{ title: string; status: TripStatus; trips: TripSummary[] }> = [];
-    for (const status of ["ongoing", "upcoming", "draft", "completed"] as TripStatus[]) {
-      const items = filtered.filter((trip) => trip.status === status);
-      if (items.length) sections.push({ title: status === "draft" ? "Draft trips" : `${status[0]?.toUpperCase()}${status.slice(1)} trips`, status, trips: items });
-    }
-    return sections;
-  }, [filtered]);
-
-  const refresh = async () => {
-    await Promise.all([tripsQuery.refetch(), invitationsQuery.refetch()]);
-  };
-
-  return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
-      <StatusBar style="dark" />
-      <ScrollView
-        refreshControl={<RefreshControl refreshing={tripsQuery.isRefetching || invitationsQuery.isRefetching} onRefresh={() => void refresh()} tintColor="#7055EC" />}
-        contentContainerStyle={[styles.content, { paddingHorizontal: width < 390 ? 14 : 18 }]}
-      >
-        <View style={styles.maxWidth}>
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.hello}>YOUR TRAVEL WORKSPACE</Text>
-              <Text style={styles.title}>My Trips</Text>
-              <Text style={styles.subtitle}>Plan, collaborate, track spending, and keep every detail in one place.</Text>
-            </View>
-            <Pressable accessibilityRole="button" onPress={() => router.push("/trip/create" as Href)} style={({ pressed }) => [styles.newTripButton, pressed && styles.pressed]}>
-              <Text style={styles.newTripPlus}>＋</Text>
-              <Text style={styles.newTripText}>New Trip</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.searchBox}>
-            <Text style={styles.searchIcon}>⌕</Text>
-            <TextInput value={search} onChangeText={setSearch} placeholder="Search trips or destinations" placeholderTextColor="#9AA3B5" style={styles.searchInput} />
-          </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-            {FILTERS.map((item) => (
-              <Pressable key={item.key} onPress={() => setFilter(item.key)} style={[styles.filter, filter === item.key && styles.filterActive]}>
-                <Text style={[styles.filterText, filter === item.key && styles.filterTextActive]}>{item.label}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          {(invitationsQuery.data?.length ?? 0) > 0 ? (
-            <View style={styles.invitationSection}>
-              <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>Trip invitations</Text><Text style={styles.sectionCount}>{invitationsQuery.data?.length}</Text></View>
-              {invitationsQuery.data?.map((invitation) => (
-                <View key={invitation.membershipId} style={styles.invitationCard}>
-                  <View style={styles.invitationIcon}><Text style={styles.invitationGlyph}>✦</Text></View>
-                  <View style={styles.invitationCopy}>
-                    <Text style={styles.invitationTitle}>{invitation.tripName}</Text>
-                    <Text style={styles.invitationMeta}>{invitation.destination} · invited by {invitation.invitedByName}</Text>
-                  </View>
-                  <View style={styles.invitationActions}>
-                    <Pressable disabled={invitationMutation.isPending} onPress={() => invitationMutation.mutate({ membershipId: invitation.membershipId, action: "accept" })} style={styles.acceptButton}><Text style={styles.acceptText}>Accept</Text></Pressable>
-                    <Pressable disabled={invitationMutation.isPending} onPress={() => invitationMutation.mutate({ membershipId: invitation.membershipId, action: "reject" })} style={styles.rejectButton}><Text style={styles.rejectText}>Decline</Text></Pressable>
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          {tripsQuery.isLoading ? (
-            <View style={styles.state}><ActivityIndicator color="#7055EC" size="large" /><Text style={styles.stateTitle}>Loading your trips</Text></View>
-          ) : tripsQuery.isError ? (
-            <View style={styles.state}><Text style={styles.stateIcon}>!</Text><Text style={styles.stateTitle}>Trips could not load</Text><Text style={styles.stateCopy}>{tripsQuery.error instanceof Error ? tripsQuery.error.message : "Check your connection and try again."}</Text><Pressable onPress={() => void tripsQuery.refetch()} style={styles.retry}><Text style={styles.retryText}>Try again</Text></Pressable></View>
-          ) : filtered.length === 0 ? (
-            <View style={styles.state}><Text style={styles.stateIcon}>✈</Text><Text style={styles.stateTitle}>{trips.length ? "No trips match this view" : "Your next trip starts here"}</Text><Text style={styles.stateCopy}>{trips.length ? "Try a different filter or search." : "Create a trip to unlock itinerary, maps, budgets, expenses, invitations, and local documents."}</Text><Pressable onPress={() => router.push("/trip/create" as Href)} style={styles.retry}><Text style={styles.retryText}>Create a trip</Text></Pressable></View>
-          ) : filter === "all" ? (
-            grouped.map((section) => (
-              <View key={section.status} style={styles.section}>
-                <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>{section.title}</Text><Text style={styles.sectionCount}>{section.trips.length}</Text></View>
-                <View style={styles.tripList}>{section.trips.map((trip) => <TripCard key={trip.id} trip={trip} onPress={() => router.push(`/trip/${trip.id}` as Href)} />)}</View>
-              </View>
-            ))
-          ) : (
-            <View style={styles.section}><View style={styles.tripList}>{filtered.map((trip) => <TripCard key={trip.id} trip={trip} onPress={() => router.push(`/trip/${trip.id}` as Href)} />)}</View></View>
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+export function TripsScreen(){
+ const router=useRouter();const[search,setSearch]=useState("");const[onlyUpcoming,setOnlyUpcoming]=useState(false);
+ const q=useQuery({queryKey:["trips"],queryFn:listTrips,retry:1,staleTime:30_000});
+ const trips=q.data??[];const filtered=useMemo(()=>trips.filter(t=>{const matches=`${t.name} ${t.destination}`.toLowerCase().includes(search.toLowerCase());return matches&&(!onlyUpcoming||t.status==="upcoming");}),[trips,search,onlyUpcoming]);
+ const selected=filtered[0]??trips[0]??fallback;
+ const upcoming=(filtered.length?filtered:trips).slice(0,3);
+ const go=(suffix="")=>{ const id=String(selected?.id??"local-japan"); router.push(`/trip/${encodeURIComponent(id)}${suffix?`/${suffix}`:""}` as Href); };
+ return <SafeAreaView style={s.safe} edges={["top"]}><StatusBar style="dark"/><ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}><View style={s.max}><FauxStatusBar/>
+  <View style={s.head}><Text style={s.heading}>My Trips</Text><View style={s.headBtns}><Pressable onPress={()=>Alert.alert("Trip notifications","No new trip notifications right now.")} style={s.bell}><Ionicons name="notifications-outline" size={21} color={PX.ink}/><View style={s.dot}/></Pressable><Pressable onPress={()=>router.push("/trip/create" as Href)}><LinearGradient colors={["#2C2F34","#44484F"]} style={s.newTrip}><Ionicons name="add" size={17} color="#FFFFFF"/><Text style={s.newText}>New Trip</Text></LinearGradient></Pressable></View></View>
+  <Glass style={s.search}><Ionicons name="search-outline" size={21} color="#686D75"/><TextInput value={search} onChangeText={setSearch} placeholder="Search trips, destinations, flights..." placeholderTextColor="#99A2B4" style={s.searchInput}/><Pressable accessibilityLabel="Toggle upcoming trips filter" onPress={()=>setOnlyUpcoming(v=>!v)} style={[s.filterButton,onlyUpcoming&&s.filterButtonOn]}><Ionicons name="options-outline" size={20} color={onlyUpcoming?"#22252A":"#777C84"}/></Pressable></Glass>
+  {q.isLoading?<View style={s.loading}><ActivityIndicator color="#5F646C"/><Text style={s.loadingText}>Loading trips…</Text></View>:null}
+  <LinearGradient colors={["#FFF2F6","#F7F1FF","#EEF5FF"]} start={{x:0,y:0}} end={{x:1,y:1}} style={s.ticket}><DottedPattern/>
+    <View style={s.ticketTop}><View style={s.nextPill}><Ionicons name="airplane-outline" size={13} color="#3E9A75"/><Text style={s.nextText}>Next Trip</Text></View><View style={s.routeState}><View style={s.routeDot}/><Text style={s.routeStateText}>In-Route</Text></View></View>
+    <View style={s.ticketBody}><View style={s.airport}><Text style={s.airportCode}>BXU</Text><Text style={s.airportName}>Bancasi Airport</Text></View><View style={s.flightLine}><View style={s.dash}/><Ionicons name="airplane" size={20} color="#8B7FEF"/><View style={s.dash}/></View><View style={[s.airport,s.airportR]}><Text style={s.airportCode}>CEB</Text><Text style={[s.airportName,{textAlign:"right"}]}>Mactan–Cebu International Airport</Text></View><View style={s.stub}><Text style={s.stubLabel}>GATE</Text><Text style={s.stubValue}>—</Text><Text style={[s.stubLabel,{marginTop:12}]}>FLIGHT</Text><Text style={s.stubValue}>PR2334</Text><View style={s.stubRow}><View><Text style={s.stubLabel}>TERMINAL</Text><Text style={s.stubValue}>1</Text></View><View><Text style={s.stubLabel}>SEAT</Text><Text style={s.stubValue}>—</Text></View></View><Barcode/></View></View>
+    <View style={s.times}><View><Text style={s.timeLabel}>DEPARTS</Text><Text style={s.timeValue}>5:17 PM</Text><Text style={s.timeDate}>Sep 18, 2026</Text></View><View><Text style={s.timeLabel}>ETA / ARRIVES</Text><Text style={s.timeValue}>6:06 PM</Text><Text style={s.timeDate}>Local Time</Text></View></View>
+    <View style={s.ticketFooter}><View style={s.flightPill}><Ionicons name="airplane-outline" size={15} color="#60748F"/><Text style={s.flightPillText}>PR2334</Text></View><Pressable onPress={()=>Alert.alert("Flight PR2334","Scheduled · Terminal 1 · CEB arrival 6:06 PM")} style={s.checkFlight}><Ionicons name="refresh-outline" size={15} color="#FFFFFF"/><Text style={s.checkFlightText}>Check Flight</Text></Pressable></View>
+  </LinearGradient>
+  <Pressable onPress={()=>go()} style={s.selected}><View style={s.thumb}>{selected.coverImageUrl?<Image source={{uri:selected.coverImageUrl}} contentFit="cover" style={StyleSheet.absoluteFillObject}/>:<LinearGradient colors={["#53D5E7","#DA3F6F","#2A5FFF"]} style={StyleSheet.absoluteFillObject}/>}</View><View style={s.selectedCopy}><Text style={s.selectedName}>{selected.name||"Japan"}</Text><Text style={s.selectedDest}>{selected.destination||"Hong Kong"}</Text><View style={s.travelers}><View style={s.you}><Text style={s.youText}>YOU</Text></View><View style={s.smallAvatar}><Text style={s.smallAvatarText}>T</Text></View><View style={s.smallAvatar}><Text style={s.smallAvatarText}>T</Text></View><Text style={s.travelerText}>{Math.max(3,selected.memberCount||0)} travelers</Text></View></View><Readiness/><Ionicons name="chevron-forward" size={22} color="#65748E"/></Pressable>
+  <View style={s.sectionTop}><View><Text style={s.sectionTitle}>Quick Actions</Text><Text style={s.sectionSub}>Everything for your latest trip.</Text></View></View>
+  <View style={s.quickGrid}>{quick.map(([label,sub,suffix,icon,colors,foreground,tilt],i)=><Pressable key={label} accessibilityRole="button" accessibilityLabel={`${label}. ${sub}`} onPress={()=>go(suffix)} style={({pressed})=>[s.quickCard,i<2&&s.quickWide,pressed&&{opacity:.72,transform:[{scale:.985}]}]}><View><Text style={s.quickTitle}>{label}</Text><Text style={s.quickSub}>{sub}</Text></View><Soft3DIcon colors={colors} icon={icon} foreground={foreground} size={58} tilt={tilt}/></Pressable>)}</View>
+  <View style={s.upHead}><View><Text style={s.sectionTitle}>Upcoming Trips</Text><Text style={s.sectionSub}>Open any trip to continue planning.</Text></View><Pressable onPress={()=>{setOnlyUpcoming(false);setSearch("");}} style={s.seeAllButton}><Text style={s.seeAll}>See All</Text><Ionicons name="chevron-forward" size={14} color="#5F646C"/></Pressable></View><View style={s.upList}>{(upcoming.length?upcoming:[fallback,fallback2,fallback3]).map((t,i)=><Pressable key={`${t.id}-${i}`} onPress={()=>router.push(`/trip/${t.id}` as Href)} style={s.upRow}><View style={s.upImage}>{t.coverImageUrl?<Image source={{uri:t.coverImageUrl}} contentFit="cover" style={StyleSheet.absoluteFillObject}/>:<LinearGradient colors={i===1?["#473B5E","#B87A5D"]:["#24B7D8","#EF4C69"]} style={StyleSheet.absoluteFillObject}/>}</View><View style={s.upCopy}><Text style={s.upName}>{t.name}</Text><Text style={s.upDest}>{t.destination}</Text><View style={s.upDateRow}><Ionicons name="calendar-outline" size={12} color="#8792A7"/><Text style={s.upDate}>{i===0?"Feb 12, 2027 – Feb 20, 2027":i===1?"Sep 21, 2026 – Sep 23, 2026":"Sep 10, 2025 – Sep 24, 2025"}</Text></View></View><View style={s.daysBadge}><Text style={s.daysText}>{i===0?"175":i===1?"33":"20"} days</Text></View><Ionicons name="chevron-forward" size={20} color="#6D7A91"/></Pressable>)}</View>
+ </View></ScrollView></SafeAreaView>
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F8F9FF" },
-  content: { paddingTop: 14, paddingBottom: 120 },
-  maxWidth: { width: "100%", maxWidth: 780, alignSelf: "center" },
-  header: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 14 },
-  hello: { color: "#7055EC", fontSize: 9, lineHeight: 13, fontWeight: "900", letterSpacing: 1.2 },
-  title: { marginTop: 4, color: "#15213A", fontSize: 34, lineHeight: 39, fontWeight: "900" },
-  subtitle: { marginTop: 5, maxWidth: 420, color: "#7B869B", fontSize: 11, lineHeight: 16, fontWeight: "600" },
-  newTripButton: { minHeight: 43, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 14, borderRadius: 15, backgroundColor: "#FF6385", boxShadow: "0px 5px 10px rgba(255,99,133,0.20)", elevation: 4 },
-  pressed: { opacity: 0.75 },
-  newTripPlus: { color: "#FFFFFF", fontSize: 20, lineHeight: 22 },
-  newTripText: { color: "#FFFFFF", fontSize: 11, fontWeight: "900" },
-  searchBox: { marginTop: 19, height: 50, flexDirection: "row", alignItems: "center", borderRadius: 17, paddingHorizontal: 14, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E9EBF2" },
-  searchIcon: { color: "#8A95A9", fontSize: 20 },
-  searchInput: { flex: 1, minWidth: 0, height: "100%", paddingHorizontal: 10, color: "#1D2942", fontSize: 12, fontWeight: "700" },
-  filters: { paddingTop: 13, paddingBottom: 5, gap: 7 },
-  filter: { paddingHorizontal: 13, paddingVertical: 8, borderRadius: 13, backgroundColor: "#EFF1F6" },
-  filterActive: { backgroundColor: "#7157EC" },
-  filterText: { color: "#6C778D", fontSize: 10, fontWeight: "800" },
-  filterTextActive: { color: "#FFFFFF" },
-  invitationSection: { marginTop: 18 },
-  invitationCard: { marginTop: 9, flexDirection: "row", alignItems: "center", gap: 11, borderRadius: 20, padding: 12, backgroundColor: "#FFF7FA", borderWidth: 1, borderColor: "#FFDDE7" },
-  invitationIcon: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#FFDCE6" },
-  invitationGlyph: { color: "#E64B75", fontSize: 20 },
-  invitationCopy: { flex: 1, minWidth: 0 },
-  invitationTitle: { color: "#1C2841", fontSize: 12, fontWeight: "900" },
-  invitationMeta: { marginTop: 3, color: "#7F899B", fontSize: 9, lineHeight: 13, fontWeight: "600" },
-  invitationActions: { gap: 5 },
-  acceptButton: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "#6F55E8" },
-  acceptText: { color: "#FFFFFF", fontSize: 9, fontWeight: "900" },
-  rejectButton: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "#FFFFFF" },
-  rejectText: { color: "#8A6170", fontSize: 9, fontWeight: "900" },
-  section: { marginTop: 23 },
-  sectionHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sectionTitle: { color: "#1A263E", fontSize: 17, fontWeight: "900" },
-  sectionCount: { minWidth: 22, height: 22, borderRadius: 11, textAlign: "center", textAlignVertical: "center", color: "#7055EC", backgroundColor: "#ECE8FF", fontSize: 10, lineHeight: 22, fontWeight: "900" },
-  tripList: { marginTop: 10, gap: 12 },
-  state: { marginTop: 48, alignItems: "center", paddingHorizontal: 24, paddingVertical: 32, borderRadius: 25, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#ECEEF5" },
-  stateIcon: { width: 52, height: 52, borderRadius: 26, textAlign: "center", textAlignVertical: "center", color: "#7055EC", backgroundColor: "#EEE9FF", fontSize: 25, lineHeight: 52, fontWeight: "900" },
-  stateTitle: { marginTop: 12, color: "#1B2740", fontSize: 17, fontWeight: "900" },
-  stateCopy: { marginTop: 6, maxWidth: 420, textAlign: "center", color: "#7C879B", fontSize: 11, lineHeight: 17, fontWeight: "600" },
-  retry: { marginTop: 14, minHeight: 42, justifyContent: "center", paddingHorizontal: 18, borderRadius: 14, backgroundColor: "#7055EC" },
-  retryText: { color: "#FFFFFF", fontSize: 11, fontWeight: "900" },
-});
+function DottedPattern(){return <View style={[s.dots,{pointerEvents:"none"}]}>{Array.from({length:120},(_,i)=><View key={`dot-${i}`} style={s.dotPixel}/>)}</View>}
+function Barcode(){return <View style={s.barcode}>{Array.from({length:34},(_,i)=><View key={i} style={{width:i%5===0?3:i%3===0?2:1,backgroundColor:"#172034"}}/>)}</View>}
+function Readiness(){return <View style={s.ready}><Text style={s.readyPct}>78%</Text><Text style={s.readyText}>Ready</Text></View>}
+const fallback:TripSummary={id:"local-japan",name:"Japan",destination:"Hong Kong",description:null,startDate:null,endDate:null,numberOfDays:8,status:"upcoming",coverImageUrl:null,coverStoragePath:null,totalBudget:90000,currencyCode:"PHP",travelStyle:null,travelGroup:null,ownerId:"local",ownerName:"Traveler",memberCount:3,flightNumber:"PR2334",flightDate:null,createdAt:new Date(0).toISOString(),updatedAt:new Date(0).toISOString()};
+const fallback2={...fallback,id:"local-weekend",name:"Weekend Getaway",destination:"Kuala Lumpur, Malaysia"};const fallback3={...fallback,id:"local-vietnam",name:"Vietnam with Shishi",destination:"Hanoi, Vietnam"};
+const s=StyleSheet.create({safe:{flex:1,backgroundColor:"#FFF"},scroll:{paddingHorizontal:18,paddingBottom:110},max:{width:"100%",maxWidth:640,alignSelf:"center"},head:{marginTop:10,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},heading:{color:PX.ink,fontSize:40,lineHeight:46,fontWeight:"900",letterSpacing:-1.4},headBtns:{flexDirection:"row",gap:10,alignItems:"center"},bell:{width:48,height:48,borderRadius:24,alignItems:"center",justifyContent:"center",backgroundColor:"#FFF",borderWidth:1,borderColor:"#EEF0F5",boxShadow:"0 8px 20px rgba(64,68,99,.07)"},bellText:{color:PX.ink,fontSize:22},dot:{position:"absolute",right:6,top:5,width:8,height:8,borderRadius:4,backgroundColor:"#F84D73",borderWidth:2,borderColor:"#FFF"},newTrip:{height:48,paddingHorizontal:18,borderRadius:17,flexDirection:"row",gap:5,alignItems:"center",justifyContent:"center",boxShadow:"0 10px 22px rgba(112,151,208,.18)"},newText:{color:"#FFF",fontSize:12,fontWeight:"900"},search:{marginTop:18,height:58,borderRadius:20,paddingHorizontal:16,flexDirection:"row",alignItems:"center",gap:10},searchGlyph:{color:"#7483A4",fontSize:25},filterButton:{width:38,height:38,borderRadius:13,alignItems:"center",justifyContent:"center"},filterButtonOn:{backgroundColor:"#EFEFF0"},searchInput:{flex:1,height:"100%",color:PX.ink,fontSize:12,fontWeight:"600"},filter:{color:"#7583A0",fontSize:22},loading:{height:60,alignItems:"center",justifyContent:"center",flexDirection:"row",gap:8},loadingText:{color:PX.muted,fontSize:11,fontWeight:"700"},ticket:{marginTop:18,borderRadius:30,overflow:"hidden",borderWidth:1,borderColor:"#E3DFF0",boxShadow:"0 18px 42px rgba(93,77,135,.13)",position:"relative"},dots:{...StyleSheet.absoluteFillObject,flexDirection:"row",flexWrap:"wrap",alignContent:"flex-start",gap:18,padding:12,opacity:.28},dotPixel:{width:2,height:2,borderRadius:1,backgroundColor:"#B8A8E8"},ticketTop:{height:50,paddingHorizontal:18,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},nextPill:{paddingHorizontal:10,paddingVertical:6,borderRadius:15,flexDirection:"row",alignItems:"center",gap:4,backgroundColor:"#E8FFF1"},nextText:{color:"#2CA66F",fontSize:9,fontWeight:"900"},routeState:{flexDirection:"row",alignItems:"center",gap:6},routeDot:{width:7,height:7,borderRadius:4,backgroundColor:"#666B72"},routeStateText:{color:"#666B72",fontSize:9,fontWeight:"900"},ticketBody:{minHeight:174,paddingHorizontal:22,flexDirection:"row",alignItems:"center",gap:8},airport:{flex:1,minWidth:0,zIndex:2},airportR:{alignItems:"flex-end"},airportCode:{color:PX.ink,fontSize:40,fontWeight:"900",letterSpacing:-1.4},airportName:{marginTop:5,color:"#67728F",fontSize:10,fontWeight:"600",lineHeight:14},flightLine:{flex:.9,minWidth:72,flexDirection:"row",alignItems:"center",gap:8,paddingHorizontal:8},dash:{flex:1,borderTopWidth:1.5,borderStyle:"dashed",borderColor:"#C4B9EB"},plane:{color:"#6F9DD6",fontSize:18},stub:{width:112,alignSelf:"stretch",paddingLeft:14,paddingRight:8,borderLeftWidth:1.5,borderStyle:"dashed",borderColor:"#D7CFF0",justifyContent:"center",backgroundColor:"rgba(255,255,255,.28)"},stubLabel:{color:"#8C8FA3",fontSize:8,fontWeight:"900",letterSpacing:.9},stubValue:{marginTop:4,color:PX.ink,fontSize:16,fontWeight:"900"},stubRow:{marginTop:10,flexDirection:"row",justifyContent:"space-between"},barcode:{height:36,marginTop:10,flexDirection:"row",gap:1},times:{paddingHorizontal:22,paddingBottom:18,flexDirection:"row",gap:42,zIndex:2},timeLabel:{color:"#939BAE",fontSize:7,fontWeight:"900",letterSpacing:.8},timeValue:{marginTop:4,color:PX.ink,fontSize:15,fontWeight:"900"},timeDate:{marginTop:3,color:"#8490A6",fontSize:8,fontWeight:"600"},ticketFooter:{padding:12,flexDirection:"row",gap:10,backgroundColor:"rgba(255,255,255,.78)",borderTopWidth:1,borderTopColor:"#E7E2F1",zIndex:2},flightPill:{flex:1,height:42,borderRadius:13,justifyContent:"center",paddingHorizontal:13,backgroundColor:"#F4F4F5",flexDirection:"row",alignItems:"center",gap:6},flightPillText:{color:"#4F5C76",fontSize:9,fontWeight:"900"},checkFlight:{height:42,paddingHorizontal:16,borderRadius:13,flexDirection:"row",gap:5,alignItems:"center",justifyContent:"center",backgroundColor:"#25282D"},checkFlightText:{color:"#FFF",fontSize:9,fontWeight:"900"},selected:{marginTop:12,minHeight:92,borderRadius:22,padding:10,flexDirection:"row",alignItems:"center",gap:12,backgroundColor:"#FFF",borderWidth:1,borderColor:"#E1E2E4",boxShadow:"0 10px 24px rgba(67,72,101,.06)"},thumb:{width:76,height:72,borderRadius:17,overflow:"hidden"},selectedCopy:{flex:1},selectedName:{color:PX.ink,fontSize:16,fontWeight:"900"},selectedDest:{marginTop:3,color:"#77829A",fontSize:11,fontWeight:"600"},travelers:{marginTop:9,flexDirection:"row",alignItems:"center"},you:{width:30,height:30,borderRadius:15,alignItems:"center",justifyContent:"center",backgroundColor:"#2E3447"},youText:{color:"#FFF",fontSize:7,fontWeight:"900"},smallAvatar:{width:30,height:30,borderRadius:15,alignItems:"center",justifyContent:"center",backgroundColor:"#F0F0F5",marginLeft:-3},smallAvatarText:{color:"#5E687D",fontSize:8,fontWeight:"900"},travelerText:{marginLeft:8,color:"#78839A",fontSize:10,fontWeight:"600"},ready:{width:60,height:60,borderRadius:30,borderWidth:7,borderColor:"#55CDA7",alignItems:"center",justifyContent:"center",backgroundColor:"#FFF"},readyPct:{color:PX.ink,fontSize:12,fontWeight:"900"},readyText:{color:"#6E7C8F",fontSize:7,fontWeight:"700"},chev:{color:PX.ink,fontSize:28},sectionTop:{marginTop:20},sectionTitle:{color:PX.ink,fontSize:20,fontWeight:"900"},sectionSub:{marginTop:3,color:PX.muted,fontSize:10,fontWeight:"600"},quickGrid:{marginTop:12,flexDirection:"row",flexWrap:"wrap",gap:10},quickCard:{width:"31.5%",minWidth:170,height:114,padding:16,borderRadius:24,flexGrow:1,flexDirection:"row",alignItems:"center",justifyContent:"space-between",backgroundColor:"#FFF",borderWidth:1,borderColor:"#E1E2E4",boxShadow:"0 10px 24px rgba(70,74,104,.055)"},quickWide:{width:"48%"},quickTitle:{color:PX.ink,fontSize:14,fontWeight:"900"},quickSub:{marginTop:5,color:PX.muted,fontSize:10,fontWeight:"600"},upHead:{marginTop:22,flexDirection:"row",alignItems:"flex-end",justifyContent:"space-between"},seeAllButton:{flexDirection:"row",alignItems:"center",gap:2},seeAll:{color:PX.purple,fontSize:10,fontWeight:"900"},upList:{marginTop:10,gap:9},upRow:{height:84,padding:8,borderRadius:22,flexDirection:"row",alignItems:"center",gap:12,backgroundColor:"#FFF",borderWidth:1,borderColor:"#E1E2E4"},upImage:{width:98,height:68,borderRadius:15,overflow:"hidden"},upCopy:{flex:1},upName:{color:PX.ink,fontSize:13,fontWeight:"900"},upDest:{marginTop:3,color:PX.muted,fontSize:9,fontWeight:"600"},upDateRow:{marginTop:7,flexDirection:"row",alignItems:"center",gap:4},upDate:{color:"#8792A7",fontSize:8,fontWeight:"600"},daysBadge:{paddingHorizontal:13,paddingVertical:9,borderRadius:18,backgroundColor:"#F1F2F3"},daysText:{color:"#60656D",fontSize:9,fontWeight:"900"}});
