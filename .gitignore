@@ -47,3 +47,6 @@ yarn-error.log*
 # Temporary files
 tmp/
 temp/
+
+# Local project archives
+trava-current.zip
