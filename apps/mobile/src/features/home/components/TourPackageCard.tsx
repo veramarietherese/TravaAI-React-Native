@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -12,90 +13,76 @@ interface TourPackageCardProps {
   width?: number;
 }
 
-export function TourPackageCard({ tour, favorite, onOpen, onToggleFavorite, width = 252 }: TourPackageCardProps) {
-  return (
-    <View style={[styles.card, { width }]}>
-      <View style={styles.content}>
-        <View style={styles.imageWrap}>
-          {tour.imageUrl ? (
-            <Image source={{ uri: tour.imageUrl }} contentFit="cover" style={StyleSheet.absoluteFill} transition={170} />
-          ) : (
-            <View style={styles.imageFallback}><Text style={styles.fallbackIcon}>⌖</Text></View>
-          )}
-        </View>
+const FALLBACK =
+  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=78";
 
-        <View style={styles.body}>
-          <Text numberOfLines={2} style={styles.title}>{tour.title}</Text>
-          <Text numberOfLines={1} style={styles.meta}>
-            {tour.durationDays || 0} Days{tour.durationNights ? ` • ${tour.durationNights} Nights` : ""}
-          </Text>
-          <View style={styles.footer}>
-            <Text numberOfLines={1} adjustsFontSizeToFit style={styles.price}>{formatMoney(tour.price, tour.currencyCode)}</Text>
-            <View style={styles.openButton}><Text style={styles.openText}>Explore ›</Text></View>
-          </View>
+export function TourPackageCard({
+  tour,
+  favorite,
+  onOpen,
+  onToggleFavorite,
+  width = 292,
+}: TourPackageCardProps) {
+  const destination = tour.destination || tour.country || "Travel destination";
+  const days = Math.max(1, tour.durationDays || 1);
+  const nights = Math.max(0, tour.durationNights || Math.max(0, days - 1));
+
+  return (
+    <View style={[s.card, { width }]}>
+      <Pressable onPress={onOpen} style={({ pressed }) => [s.imageArea, pressed && s.pressed]}>
+        <Image source={{ uri: tour.imageUrl || FALLBACK }} contentFit="cover" style={StyleSheet.absoluteFill} transition={150} />
+        <View style={s.pager}><View style={s.pagerDot} /><View style={s.pagerDotOff} /><View style={s.pagerDotOff} /></View>
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={favorite ? "Remove saved package" : "Save package"} onPress={onToggleFavorite} style={({ pressed }) => [s.favorite, pressed && s.pressed]}>
+        <Ionicons name={favorite ? "heart" : "heart-outline"} size={20} color="#FFFFFF" />
+      </Pressable>
+      <View style={s.body}>
+        <View style={s.titleRow}>
+          <Text numberOfLines={1} style={s.title}>{tour.title}</Text>
+          <View style={s.rating}><Ionicons name="sparkles" size={13} color="#E3A23A" /><Text style={s.ratingText}>TRAVA</Text></View>
+        </View>
+        <View style={s.location}>
+          <Ionicons name="location-outline" size={16} color="#68707C" />
+          <Text numberOfLines={1} style={s.locationText}>{destination}</Text>
+        </View>
+        <View style={s.details}>
+          <View style={s.detail}><Ionicons name="calendar-outline" size={15} color="#23272D" /><Text style={s.detailText}>{days}D</Text></View>
+          <View style={s.detail}><Ionicons name="moon-outline" size={15} color="#23272D" /><Text style={s.detailText}>{nights}N</Text></View>
+          <View style={[s.detail, { flex: 1 }]}><Ionicons name="pricetag-outline" size={15} color="#23272D" /><Text numberOfLines={1} style={s.detailText}>{tour.category || "Tour"}</Text></View>
+        </View>
+        <View style={s.footer}>
+          <View><Text style={s.price}>{formatMoney(tour.price, tour.currencyCode)}</Text><Text style={s.caption}>per package</Text></View>
+          <Pressable onPress={onOpen} style={({ pressed }) => [s.cta, pressed && s.ctaPressed]}>
+            <Text style={s.ctaText}>View</Text><Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+          </Pressable>
         </View>
       </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${tour.title}`}
-        onPress={onOpen}
-        style={({ pressed }) => [styles.cardHitArea, pressed && styles.cardHitAreaPressed]}
-      />
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={favorite ? "Remove from favorites" : "Add to favorites"}
-        onPress={onToggleFavorite}
-        style={({ pressed }) => [styles.favorite, favorite && styles.favoriteActive, pressed && styles.pressed]}
-      >
-        <Text style={[styles.favoriteGlyph, favorite && styles.favoriteGlyphActive]}>{favorite ? "♥" : "♡"}</Text>
-      </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    position: "relative",
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#E7EAF1",
-    borderRadius: 21,
-    backgroundColor: "#FFFFFF",
-    boxShadow: "0 12px 28px rgba(55,64,99,0.09)",
-  },
-  content: { pointerEvents: "none" },
-  cardHitArea: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-    borderRadius: 21,
-  },
-  cardHitAreaPressed: { backgroundColor: "rgba(90,103,150,0.035)" },
-  imageWrap: { height: 165, overflow: "hidden", backgroundColor: "#E8EBF7" },
-  imageFallback: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#EEF1FF" },
-  fallbackIcon: { color: "#7558F0", fontSize: 32, fontWeight: "900" },
-  favorite: {
-    position: "absolute",
-    zIndex: 2,
-    top: 10,
-    right: 10,
-    width: 38,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.92)",
-  },
-  favoriteActive: { backgroundColor: "#FFF0F6" },
-  favoriteGlyph: { color: "#53617B", fontSize: 24, lineHeight: 27, fontWeight: "700" },
-  favoriteGlyphActive: { color: "#FF4E91" },
-  body: { padding: 14 },
-  title: { minHeight: 38, color: "#1A2743", fontSize: 15, lineHeight: 19, fontWeight: "900" },
-  meta: { marginTop: 4, color: "#7B879D", fontSize: 11, lineHeight: 15, fontWeight: "600" },
-  footer: { marginTop: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  price: { flex: 1, color: "#684CDC", fontSize: 14, lineHeight: 18, fontWeight: "900" },
-  openButton: { paddingHorizontal: 11, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: "#D8CEFF" },
-  openText: { color: "#6A51DD", fontSize: 10, fontWeight: "900" },
-  pressed: { opacity: 0.65 },
+const s = StyleSheet.create({
+  card: { overflow: "hidden", borderRadius: 25, padding: 9, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E7E8EA", boxShadow: "0 12px 28px rgba(24,28,35,.09)" },
+  imageArea: { position: "relative", height: 176, overflow: "hidden", borderRadius: 20, backgroundColor: "#EEF1F4" },
+  favorite: { position: "absolute", right: 19, top: 19, width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(42,48,57,.62)", zIndex: 3 },
+  pager: { position: "absolute", alignSelf: "center", bottom: 10, height: 17, paddingHorizontal: 8, borderRadius: 9, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(42,48,57,.45)" },
+  pagerDot: { width: 13, height: 5, borderRadius: 3, backgroundColor: "#FFFFFF" },
+  pagerDotOff: { width: 5, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,.45)" },
+  body: { paddingHorizontal: 5, paddingTop: 12, paddingBottom: 4 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  title: { flex: 1, color: "#111318", fontSize: 16, lineHeight: 20, fontWeight: "900" },
+  rating: { flexDirection: "row", alignItems: "center", gap: 4 },
+  ratingText: { color: "#343840", fontSize: 9, fontWeight: "800" },
+  location: { marginTop: 7, flexDirection: "row", alignItems: "center", gap: 5 },
+  locationText: { flex: 1, color: "#6A707A", fontSize: 10, fontWeight: "600" },
+  details: { marginTop: 9, flexDirection: "row", gap: 9 },
+  detail: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 4 },
+  detailText: { color: "#30343A", fontSize: 9, fontWeight: "700" },
+  footer: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  price: { color: "#111318", fontSize: 15, fontWeight: "900" },
+  caption: { marginTop: 1, color: "#858B94", fontSize: 7.5, fontWeight: "700" },
+  cta: { height: 40, minWidth: 92, paddingHorizontal: 15, borderRadius: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#090909" },
+  ctaText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900" },
+  ctaPressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
+  pressed: { opacity: 0.88 },
 });
