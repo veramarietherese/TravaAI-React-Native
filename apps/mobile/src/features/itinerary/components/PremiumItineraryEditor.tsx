@@ -40,6 +40,7 @@ export function PremiumItineraryEditor({ value, day, onClose, onSave, onDelete }
   useEffect(() => {
     const text = query.trim();
     if (text.length < 2) {
+// eslint-disable-next-line react-hooks/set-state-in-effect -- short-query state intentionally falls back to the currently selected itinerary location
       setResults(currentChoice && text ? [currentChoice] : []);
       setLoading(false);
       return;
