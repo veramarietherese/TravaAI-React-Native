@@ -1,23 +1,26 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { createElement, useEffect, useState } from "react";
+import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { PremiumBlueButton } from "@/components/ui/PremiumBlueButton";
 import { Glass, PX, ScreenShell, type TravaIconName } from "@/features/trips/components/TravaPixelUI";
 import { useLocalTripWorkspace, type LocalDocument } from "@/features/trips/hooks/useLocalTripWorkspace";
 import { useTripLite } from "@/features/trips/hooks/useTripLite";
+import { DocumentsHero } from "../components/DocumentsHero";
 
 const TYPES = ["Identity", "Flight", "Hotel", "Insurance", "Document"] as const;
 const TYPE_META: Record<string, { icon: TravaIconName; bg: string; fg: string }> = {
-  Identity: { icon: "person-circle-outline", bg: "#F0F1FF", fg: "#7D81D7" },
-  Flight: { icon: "airplane-outline", bg: "#EAF6FF", fg: "#5D9FDD" },
-  Hotel: { icon: "bed-outline", bg: "#FFF3EB", fg: "#D99466" },
-  Insurance: { icon: "shield-checkmark-outline", bg: "#ECF9F4", fg: "#55A889" },
-  Document: { icon: "document-text-outline", bg: "#F2F5F8", fg: "#718099" },
+  Identity: { icon: "person-circle-outline", bg: "#EEF2FF", fg: "#788ADA" },
+  Flight: { icon: "airplane-outline", bg: "#EAF7FF", fg: "#609ED8" },
+  Hotel: { icon: "bed-outline", bg: "#FFF2E8", fg: "#D89564" },
+  Insurance: { icon: "shield-checkmark-outline", bg: "#EEF8F5", fg: "#65A38F" },
+  Document: { icon: "document-text-outline", bg: "#FFF0F6", fg: "#D978A4" },
 };
 
 export function DocumentsScreen() {
@@ -25,51 +28,186 @@ export function DocumentsScreen() {
   const tripId = String(raw ?? "local-japan");
   const { trip } = useTripLite(tripId);
   const { state, addDocument, updateDocument, deleteDocument } = useLocalTripWorkspace(tripId);
-  const [open, setOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [active, setActive] = useState<LocalDocument | null>(null);
 
-  return <SafeAreaView style={s.safe} edges={["top"]}><StatusBar style="dark"/><ScreenShell tripId={tripId} title={trip.name || "Japan"}>
+  return <SafeAreaView style={s.safe} edges={["top"]}><StatusBar style="dark"/><ScreenShell tripId={tripId} title={trip.name || "Trip"}>
     <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}><View style={s.max}>
-      <LinearGradient colors={["#17191D", "#25282F"]} style={s.hero}>
-        <View style={s.heroCopy}><Text style={s.heroEyebrow}>TRAVA · PRIVATE TRIP VAULT</Text><Text style={s.heroTitle}>Your travel files, ready when you need them.</Text><Text style={s.heroSub}>{state.documents.length} local entries · available without the trip API.</Text><View style={s.heroBadges}><View style={s.heroBadge}><Ionicons name="phone-portrait-outline" size={14} color="#DDE2EA"/><Text style={s.heroBadgeText}>On this device</Text></View><View style={s.heroBadge}><Ionicons name="lock-closed-outline" size={14} color="#DDE2EA"/><Text style={s.heroBadgeText}>Private</Text></View></View></View>
-        <View style={s.folder}><Ionicons name="folder-open-outline" size={58} color="#FFFFFF"/></View>
-      </LinearGradient>
-      <View style={s.quickGrid}>
-        <View style={s.quickCard}><Ionicons name="person-circle-outline" size={22} color="#424A58"/><Text style={s.quickLabel}>Identity</Text><Text style={s.quickValue}>{state.documents.filter((d)=>d.type === "Identity").length}</Text></View>
-        <View style={s.quickCard}><Ionicons name="airplane-outline" size={22} color="#424A58"/><Text style={s.quickLabel}>Travel</Text><Text style={s.quickValue}>{state.documents.filter((d)=>d.type === "Flight" || d.type === "Hotel").length}</Text></View>
-        <View style={s.quickCard}><Ionicons name="shield-checkmark-outline" size={22} color="#424A58"/><Text style={s.quickLabel}>Insurance</Text><Text style={s.quickValue}>{state.documents.filter((d)=>d.type === "Insurance").length}</Text></View>
+      <DocumentsHero documentCount={state.documents.length}/>
+      <View style={s.topRow}><View><Text style={s.sectionTitle}>Files</Text><Text style={s.sectionSub}>Tap anywhere on a file card to preview it.</Text></View>
+        <Pressable onPress={() => setAddOpen(true)} style={s.addButton}><LinearGradient colors={["#74CEF3", "#8EABF7", "#F1A7C9"]} style={s.addGradient}><Ionicons name="cloud-upload-outline" size={18} color="#FFFFFF"/><Text style={s.addText}>Add file</Text></LinearGradient></Pressable>
       </View>
-      <View style={s.topRow}><View><Text style={s.sectionTitle}>Files</Text><Text style={s.sectionSub}>Tap a file to rename, classify or remove it.</Text></View><Pressable onPress={() => setOpen(true)} style={s.add}><Ionicons name="cloud-upload-outline" size={17} color="#FFFFFF"/><Text style={s.addText}>Add file</Text></Pressable></View>
-      <View style={s.grid}>{state.documents.map((d) => { const meta = TYPE_META[d.type] ?? TYPE_META.Document; return <Glass key={d.id} style={s.card}><View style={[s.icon, { backgroundColor: meta.bg }]}><Ionicons name={meta.icon} size={23} color={meta.fg}/></View><View style={s.copy}><Text style={s.title}>{d.title}</Text><View style={s.metaRow}><Text style={s.meta}>{d.type} · {d.size}</Text><View style={s.localPill}><View style={s.localDot}/><Text style={s.localText}>Local</Text></View></View><Text style={s.updated}>Updated {d.updated}</Text></View><Pressable accessibilityLabel={`Options for ${d.title}`} onPress={() => setActive(d)} style={s.more}><Ionicons name="ellipsis-horizontal" size={19} color="#4E5665"/></Pressable></Glass>; })}</View>
-      <Glass style={s.note}><View style={s.noteIcon}><Ionicons name="cloud-offline-outline" size={20} color="#479B7E"/></View><View style={s.noteCopy}><Text style={s.noteTitle}>Local-first trip vault</Text><Text style={s.noteText}>Entries stay local to this trip workspace. Re-attach the original file whenever a local reference is missing.</Text></View></Glass>
+
+      <View style={s.grid}>{state.documents.map((doc) => {
+        const meta = TYPE_META[doc.type] ?? TYPE_META.Document;
+        return <Pressable key={doc.id} accessibilityRole="button" accessibilityLabel={`Open ${doc.title}`} onPress={() => setActive(doc)} style={({ pressed }) => [s.card, pressed && s.pressed]}>
+          <View style={[s.icon, { backgroundColor: meta.bg }]}><Ionicons name={meta.icon} size={24} color={meta.fg}/></View>
+          <View style={s.copy}><Text numberOfLines={1} style={s.fileTitle}>{doc.title}</Text><Text style={s.meta}>{doc.type} · {doc.size}</Text><Text style={s.updated}>Updated {doc.updated}</Text></View>
+          <View style={s.openPill}><Ionicons name="eye-outline" size={16} color="#6686C9"/><Text style={s.openPillText}>Open</Text></View>
+        </Pressable>;
+      })}{state.documents.length === 0 ? <View style={s.empty}><Ionicons name="folder-open-outline" size={34} color="#8AABD9"/><Text style={s.emptyTitle}>No documents yet</Text><Text style={s.emptyBody}>Upload a PDF, image, ticket, booking file, or other travel document.</Text></View> : null}</View>
+
+      <Glass style={s.note}><Ionicons name="resize-outline" size={20} color="#6B8FD0"/><View style={{ flex: 1 }}><Text style={s.noteTitle}>Storage-aware</Text><Text style={s.noteText}>Large images are compressed automatically before local persistence. Other formats keep the original file reference and metadata.</Text></View></Glass>
     </View></ScrollView>
-    <AddDoc key={open ? "open" : "closed"} visible={open} onClose={() => setOpen(false)} onAdd={(title, type, size) => { addDocument(title, type, size); setOpen(false); }}/>
-    <DocumentActions key={active?.id ?? "closed"} document={active} onClose={() => setActive(null)} onRename={(title, type) => { if (active) updateDocument(active.id, { title, type }); setActive(null); }} onDelete={() => { if (!active) return; const doc = active; setActive(null); Alert.alert("Delete document entry?", doc.title, [{ text: "Cancel", style: "cancel" }, { text: "Delete", style: "destructive", onPress: () => deleteDocument(doc.id) }]); }}/>
+
+    <AddDocumentModal visible={addOpen} onClose={() => setAddOpen(false)} onAdd={(doc) => { addDocument(doc); setAddOpen(false); }}/>
+    <DocumentPreview key={active?.id ?? "document-preview-closed"} document={active} onClose={() => setActive(null)} onType={(type) => { if (active) updateDocument(active.id, { type }); setActive((current) => current ? { ...current, type } : current); }} onDelete={() => { if (active?.blobKey) void deleteStoredBlob(active.blobKey); if (active) deleteDocument(active.id); setActive(null); }}/>
   </ScreenShell></SafeAreaView>;
 }
 
-function AddDoc({ visible, onClose, onAdd }: { visible: boolean; onClose(): void; onAdd(title: string, type: string, size: string): void }) {
-  const [title, setTitle] = useState(""); const [type, setType] = useState<string>("Document"); const [size, setSize] = useState("Local"); const [typeOpen, setTypeOpen] = useState(false); const [picked, setPicked] = useState(false);
+function AddDocumentModal({ visible, onClose, onAdd }: { visible: boolean; onClose(): void; onAdd(value: Omit<LocalDocument, "id" | "updated">): void }) {
+  const [busy, setBusy] = useState(false);
   async function chooseFile() {
+    if (busy) return;
+    setBusy(true);
     try {
       const result = await DocumentPicker.getDocumentAsync({ multiple: false, copyToCacheDirectory: true });
-      if (!result.canceled && result.assets?.[0]) {
-        const asset = result.assets[0]; setTitle(asset.name || "Travel Document"); setSize(formatBytes(asset.size)); setPicked(true);
-        const mime = asset.mimeType || ""; if (mime.includes("pdf") || mime.includes("document")) setType("Document");
-      }
-    } catch { Alert.alert("Choose file", "The document picker could not be opened."); }
+      const asset = !result.canceled ? result.assets?.[0] : null;
+      if (!asset) return;
+      const mimeType = asset.mimeType || guessMime(asset.name);
+      const prepared = await prepareStoredDocument(asset.uri, mimeType, asset.size);
+      onAdd({ title: asset.name || "Travel Document", type: inferDocumentType(asset.name, mimeType), size: formatBytes(prepared.byteSize ?? asset.size), mimeType, uri: prepared.uri, dataUrl: prepared.dataUrl, blobKey: prepared.blobKey });
+    } finally { setBusy(false); }
   }
-  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={s.backdrop}><View style={s.modal}><View style={s.modalHead}><View><Text style={s.modalTitle}>Add local document</Text><Text style={s.modalSub}>Choose a file for its name and metadata, or create a manual vault entry.</Text></View><Pressable onPress={onClose} style={s.close}><Ionicons name="close" size={20} color="#65748E"/></Pressable></View><Pressable onPress={() => void chooseFile()} style={s.chooseFile}><View style={s.chooseIcon}><Ionicons name="document-attach-outline" size={22} color="#658ECB"/></View><View style={s.chooseCopy}><Text style={s.chooseTitle}>{picked ? "File selected" : "Choose a file"}</Text><Text style={s.chooseSub}>{picked ? `${title} · ${size}` : "PDF, image, booking confirmation, ticket…"}</Text></View><Ionicons name="chevron-forward" size={18} color="#8694AA"/></Pressable><Text style={s.label}>Document name</Text><TextInput style={s.input} value={title} onChangeText={setTitle} placeholder="Passport, hotel booking…" placeholderTextColor="#98A3B6"/><Text style={s.label}>Type</Text><Pressable onPress={() => setTypeOpen((v) => !v)} style={s.select}><Text style={s.selectText}>{type}</Text><Ionicons name={typeOpen ? "chevron-up" : "chevron-down"} size={17} color="#72809A"/></Pressable>{typeOpen ? <View style={s.selectMenu}>{TYPES.map((item) => <Pressable key={item} onPress={() => { setType(item); setTypeOpen(false); }} style={[s.selectOption, item === type && s.selectOptionOn]}><Text style={s.selectOptionText}>{item}</Text>{item === type ? <Ionicons name="checkmark" size={16} color="#6D93CE"/> : null}</Pressable>)}</View> : null}<View style={s.modalBtns}><Pressable onPress={onClose} style={s.cancel}><Text style={s.cancelText}>Cancel</Text></Pressable><Pressable onPress={() => onAdd(title.trim() || "Travel Document", type, size)} style={s.savePress}><LinearGradient colors={["#30343A", "#202328"]} style={s.save}><Text style={s.saveText}>Save to vault</Text></LinearGradient></Pressable></View></View></View></Modal>;
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={s.backdrop}><View style={s.modal}>
+    <View style={s.modalHead}><View><Text style={s.modalTitle}>Add document</Text><Text style={s.modalSub}>TRAVA keeps the original filename and format metadata.</Text></View><Pressable onPress={onClose} style={s.close}><Ionicons name="close" size={20} color="#66748A"/></Pressable></View>
+    <View style={s.uploadVisual}><LinearGradient colors={["#EEF8FF", "#F5F1FF", "#FFF1F6"]} style={StyleSheet.absoluteFill}/><Ionicons name="document-attach-outline" size={46} color="#7597D9"/><Text style={s.uploadTitle}>Choose a travel file</Text><Text style={s.uploadBody}>PDF, image, ticket, booking confirmation, office document, and more.</Text></View>
+    <PremiumBlueButton label={busy ? "Preparing file..." : "Choose file"} icon="cloud-upload-outline" loading={busy} onPress={() => void chooseFile()}/>
+  </View></View></Modal>;
 }
 
-function DocumentActions({ document, onClose, onRename, onDelete }: { document: LocalDocument | null; onClose(): void; onRename(title: string, type: string): void; onDelete(): void }) {
-  const [title, setTitle] = useState(document?.title ?? ""); const [type, setType] = useState(document?.type ?? "Document"); if (!document) return null;
-  return <Modal visible transparent animationType="fade" onRequestClose={onClose}><View style={s.backdrop}><View style={s.modal}><View style={s.modalHead}><View><Text style={s.modalTitle}>Document options</Text><Text style={s.modalSub}>{document.size} · updated {document.updated}</Text></View><Pressable onPress={onClose} style={s.close}><Ionicons name="close" size={20} color="#65748E"/></Pressable></View><Text style={s.label}>Name</Text><TextInput style={s.input} value={title} onChangeText={setTitle}/><Text style={s.label}>Type</Text><View style={s.typeChips}>{TYPES.map((item) => <Pressable key={item} onPress={() => setType(item)} style={[s.typeChip, type === item && s.typeChipOn]}><Text style={[s.typeChipText, type === item && s.typeChipTextOn]}>{item}</Text></Pressable>)}</View><View style={s.modalBtns}><Pressable onPress={onDelete} style={s.delete}><Ionicons name="trash-outline" size={17} color="#D66B80"/><Text style={s.deleteText}>Delete</Text></Pressable><Pressable onPress={onClose} style={s.cancel}><Text style={s.cancelText}>Cancel</Text></Pressable><Pressable onPress={() => onRename(title.trim() || document.title, type)} style={s.savePress}><LinearGradient colors={["#30343A", "#202328"]} style={s.save}><Text style={s.saveText}>Save changes</Text></LinearGradient></Pressable></View></View></View></Modal>;
+function DocumentPreview({ document: doc, onClose, onType, onDelete }: { document: LocalDocument | null; onClose(): void; onType(type: string): void; onDelete(): void }) {
+  const [edit, setEdit] = useState(false);
+  const [type, setType] = useState(doc?.type ?? "Document");
+  const [resolvedSource, setResolvedSource] = useState<string | null>(() => doc?.dataUrl || doc?.uri || null);
+  const blobKey = doc?.blobKey ?? null;
+
+  useEffect(() => {
+    let live = true;
+    let objectUrl: string | null = null;
+    if (Platform.OS === "web" && blobKey) {
+      void readStoredBlob(blobKey).then((blob) => {
+        if (!live || !blob) return;
+        objectUrl = URL.createObjectURL(blob);
+        setResolvedSource(objectUrl);
+      });
+    }
+    return () => { live = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [blobKey]);
+
+  if (!doc) return null;
+
+  const mime = doc.mimeType || guessMime(doc.title);
+  const source = resolvedSource;
+  const isImage = Boolean(source && mime.startsWith("image/"));
+  const isPdf = Boolean(source && mime === "application/pdf");
+
+  async function openFull() {
+    if (!source) return;
+    if (Platform.OS === "web") { window.open(source, "_blank", "noopener,noreferrer"); return; }
+    await Linking.openURL(source).catch(() => undefined);
+  }
+
+  return <Modal visible transparent animationType="fade" onRequestClose={onClose}><View style={s.backdrop}><View style={[s.modal, s.previewModal]}>
+    <View style={s.modalHead}><View style={{ flex: 1 }}><Text numberOfLines={1} style={s.modalTitle}>{doc.title}</Text><Text style={s.modalSub}>{doc.type} · {doc.size}</Text></View><Pressable onPress={onClose} style={s.close}><Ionicons name="close" size={20} color="#66748A"/></Pressable></View>
+    <View style={s.preview}>
+      {isImage && source ? <Image source={{ uri: source }} contentFit="contain" style={StyleSheet.absoluteFill}/>
+        : isPdf && source && Platform.OS === "web" ? createElement("object", { data: source, type: "application/pdf", style: { width: "100%", height: "100%", border: 0, display: "block" } } as never)
+        : <View style={s.genericPreview}><LinearGradient colors={["#EEF8FF", "#F6F2FF", "#FFF2F7"]} style={s.genericIcon}><Ionicons name={mime.includes("pdf") ? "document-text-outline" : "document-attach-outline"} size={50} color="#7695D5"/></LinearGradient><Text style={s.genericTitle}>{doc.title}</Text><Text style={s.genericBody}>{source ? "This format is stored and accessible. Use Open full document to launch it with the browser or device viewer." : "The original file reference is unavailable on this device. Re-attach the file to restore preview access."}</Text></View>}
+    </View>
+
+    {edit ? <View style={s.editPanel}><Text style={s.label}>Document type</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.typeRow}>{TYPES.map((value) => <Pressable key={value} onPress={() => setType(value)} style={[s.typeChip, type === value && s.typeChipOn]}><Text style={[s.typeChipText, type === value && s.typeChipTextOn]}>{value}</Text></Pressable>)}</ScrollView><PremiumBlueButton label="Save metadata" icon="checkmark" onPress={() => { onType(type); setEdit(false); }}/></View> : null}
+
+    <View style={s.previewActions}><Pressable onPress={() => setEdit((value) => !value)} style={s.secondaryButton}><Ionicons name="create-outline" size={18} color="#657792"/><Text style={s.secondaryText}>{edit ? "Done" : "Edit"}</Text></Pressable><Pressable onPress={onDelete} style={s.secondaryButton}><Ionicons name="trash-outline" size={18} color="#D56E87"/><Text style={[s.secondaryText, { color: "#C8667D" }]}>Delete</Text></Pressable><PremiumBlueButton label="Open full document" icon="open-outline" disabled={!source} onPress={() => void openFull()} style={{ flex: 1 }}/></View>
+  </View></View></Modal>;
 }
 
-function formatBytes(value: number | undefined | null) { if (!value || value <= 0) return "Local"; if (value < 1024) return `${value} B`; if (value < 1024 * 1024) return `${(value / 1024).toFixed(0)} KB`; return `${(value / (1024 * 1024)).toFixed(1)} MB`; }
+async function prepareStoredDocument(uri: string, mimeType: string, originalSize?: number | null) {
+  if (Platform.OS !== "web") return { uri, dataUrl: null as string | null, blobKey: null as string | null, byteSize: originalSize ?? null };
+  try {
+    const response = await fetch(uri);
+    const original = await response.blob();
+    const blob = mimeType.startsWith("image/") && original.size > 260_000 ? await compressImage(original, 1600, 0.76) : original;
+    const blobKey = await persistBlob(blob);
+    const dataUrl = blob.size <= 550_000 ? await blobToDataUrl(blob) : null;
+    return { uri: URL.createObjectURL(blob), dataUrl, blobKey, byteSize: blob.size };
+  } catch { return { uri, dataUrl: null as string | null, blobKey: null as string | null, byteSize: originalSize ?? null }; }
+}
+
+const DOC_DB = "trava-documents-v1";
+const DOC_STORE = "files";
+
+function openDocDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DOC_DB, 1);
+    request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains(DOC_STORE)) request.result.createObjectStore(DOC_STORE); };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function persistBlob(blob: Blob) {
+  const db = await openDocDb();
+  const key = `trava-doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(DOC_STORE, "readwrite");
+    tx.objectStore(DOC_STORE).put(blob, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+  return key;
+}
+
+async function readStoredBlob(key: string): Promise<Blob | null> {
+  if (Platform.OS !== "web" || typeof indexedDB === "undefined") return null;
+  try {
+    const db = await openDocDb();
+    const blob = await new Promise<Blob | null>((resolve, reject) => {
+      const request = db.transaction(DOC_STORE, "readonly").objectStore(DOC_STORE).get(key);
+      request.onsuccess = () => resolve(request.result instanceof Blob ? request.result : null);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return blob;
+  } catch { return null; }
+}
+
+async function deleteStoredBlob(key: string) {
+  if (Platform.OS !== "web" || typeof indexedDB === "undefined") return;
+  try {
+    const db = await openDocDb();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(DOC_STORE, "readwrite");
+      tx.objectStore(DOC_STORE).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+    db.close();
+  } catch { /* best effort */ }
+}
+
+async function compressImage(blob: Blob, maxDimension: number, quality: number): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const ratio = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * ratio)); const height = Math.max(1, Math.round(bitmap.height * ratio));
+    const canvas = window.document.createElement("canvas"); canvas.width = width; canvas.height = height;
+    const context = canvas.getContext("2d"); if (!context) return blob;
+    context.drawImage(bitmap, 0, 0, width, height);
+    const output = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    bitmap.close(); return output ?? blob;
+  } catch { return blob; }
+}
+function blobToDataUrl(blob: Blob) { return new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result ?? "")); reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob); }); }
+function inferDocumentType(name: string, mime: string) { const lower = `${name} ${mime}`.toLowerCase(); if (lower.includes("passport") || lower.includes("id")) return "Identity"; if (lower.includes("flight") || lower.includes("boarding") || lower.includes("airline")) return "Flight"; if (lower.includes("hotel") || lower.includes("booking") || lower.includes("accommodation")) return "Hotel"; if (lower.includes("insurance")) return "Insurance"; return "Document"; }
+function guessMime(name: string) { const lower = name.toLowerCase(); if (lower.endsWith(".pdf")) return "application/pdf"; if (/\.(png|jpg|jpeg|webp|gif)$/i.test(lower)) return lower.endsWith(".png") ? "image/png" : "image/jpeg"; if (lower.endsWith(".txt")) return "text/plain"; if (lower.endsWith(".doc") || lower.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"; return "application/octet-stream"; }
+function formatBytes(value: number | undefined | null) { if (!value || value <= 0) return "Local"; if (value < 1024) return `${value} B`; if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`; return `${(value / (1024 * 1024)).toFixed(1)} MB`; }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FFF" }, scroll: { padding: 22, paddingBottom: 130 }, max: { width: "100%", maxWidth: 700, alignSelf: "center", gap: 18 }, hero: { minHeight: 236, borderRadius: 32, padding: 28, justifyContent: "center", overflow: "hidden", borderWidth: 1, borderColor: "#272B32", boxShadow: "0 20px 48px rgba(22,25,31,.14)" }, heroCopy: { maxWidth: 470, paddingRight: 120 }, heroEyebrow: { color: "#AEB6C3", fontSize: 10, fontWeight: "900", letterSpacing: 1.25 }, heroTitle: { marginTop: 12, color: "#FFFFFF", fontSize: 29, lineHeight: 35, fontWeight: "900" }, heroSub: { marginTop: 10, color: "#C7CDD6", fontSize: 11, fontWeight: "600" }, heroBadges: { marginTop: 18, flexDirection: "row", flexWrap: "wrap", gap: 8 }, heroBadge: { minHeight: 32, paddingHorizontal: 10, borderRadius: 16, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,.08)", borderWidth: 1, borderColor: "rgba(255,255,255,.12)" }, heroBadgeText: { color: "#E6E9EE", fontSize: 9, fontWeight: "800" }, folder: { position: "absolute", right: 28, top: 58, width: 98, height: 98, borderRadius: 29, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.08)", borderWidth: 1, borderColor: "rgba(255,255,255,.14)", transform: [{ rotate: "-4deg" }] }, folderStar: { position: "absolute", right: 13, top: 10 }, quickGrid: { flexDirection: "row", gap: 10 }, quickCard: { flex: 1, minHeight: 82, borderRadius: 23, padding: 14, backgroundColor: "#FAFAFB", borderWidth: 1, borderColor: "#E6E7EA" }, quickLabel: { marginTop: 8, color: "#707684", fontSize: 9, fontWeight: "800" }, quickValue: { position: "absolute", right: 14, top: 13, color: "#202329", fontSize: 20, fontWeight: "900" }, topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }, sectionTitle: { color: PX.ink, fontSize: 23, fontWeight: "900" }, sectionSub: { marginTop: 4, color: PX.muted, fontSize: 10, fontWeight: "600" }, add: { height: 46, paddingHorizontal: 15, borderRadius: 23, flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", backgroundColor: "#24272D", boxShadow: "0 8px 20px rgba(24,27,33,.12)" }, addText: { color: "#FFF", fontSize: 10, fontWeight: "900" }, grid: { gap: 10 }, card: { minHeight: 94, borderRadius: 25, padding: 14, flexDirection: "row", alignItems: "center", gap: 13, backgroundColor: "rgba(255,255,255,.94)", borderWidth: 1, borderColor: "#E8E9EC" }, icon: { width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center" }, copy: { flex: 1 }, title: { color: PX.ink, fontSize: 14, fontWeight: "900" }, metaRow: { marginTop: 5, flexDirection: "row", alignItems: "center", gap: 8 }, meta: { color: "#687181", fontSize: 10, fontWeight: "700" }, localPill: { paddingHorizontal: 7, minHeight: 20, borderRadius: 10, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#F1F5F2" }, localDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#7A9A86" }, localText: { color: "#607269", fontSize: 8, fontWeight: "800" }, updated: { marginTop: 4, color: "#9AA0AA", fontSize: 9, fontWeight: "600" }, more: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#F4F4F5", borderWidth: 1, borderColor: "#ECEDEF" }, note: { borderRadius: 24, padding: 16, flexDirection: "row", gap: 12, alignItems: "center", backgroundColor: "#F6F7F7", borderWidth: 1, borderColor: "#E5E6E8" }, noteIcon: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "#E9ECEA" }, noteCopy: { flex: 1 }, noteTitle: { color: "#454A50", fontSize: 12, fontWeight: "900" }, noteText: { marginTop: 3, color: "#6F747B", fontSize: 9, lineHeight: 15, fontWeight: "600" },
-  backdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 22, backgroundColor: "rgba(12,17,34,.42)" }, modal: { width: "100%", maxWidth: 440, maxHeight: "88%", padding: 20, borderRadius: 26, backgroundColor: "#FFF" }, modalHead: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }, modalTitle: { color: PX.ink, fontSize: 18, fontWeight: "900" }, modalSub: { marginTop: 4, color: PX.muted, fontSize: 9, lineHeight: 14, fontWeight: "600" }, close: { width: 36, height: 36, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "#F5F7FA" }, chooseFile: { marginTop: 14, minHeight: 66, padding: 10, borderRadius: 18, flexDirection: "row", gap: 10, alignItems: "center", backgroundColor: "#F4F9FF", borderWidth: 1, borderColor: "#DDEAF7" }, chooseIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#E6F2FF" }, chooseCopy: { flex: 1 }, chooseTitle: { color: PX.ink, fontSize: 11, fontWeight: "900" }, chooseSub: { marginTop: 3, color: PX.muted, fontSize: 8, lineHeight: 12, fontWeight: "600" }, label: { marginTop: 13, marginBottom: 6, color: "#526079", fontSize: 9, fontWeight: "900" }, input: { height: 50, paddingHorizontal: 14, borderRadius: 15, backgroundColor: "#F5F7FA", borderWidth: 1, borderColor: "#E8ECF2", color: PX.ink }, select: { height: 50, paddingHorizontal: 14, borderRadius: 15, flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#F5F7FA", borderWidth: 1, borderColor: "#E8ECF2" }, selectText: { color: PX.ink, fontSize: 10, fontWeight: "800" }, selectMenu: { marginTop: 6, overflow: "hidden", borderRadius: 15, borderWidth: 1, borderColor: "#E6EBF2", backgroundColor: "#FFF" }, selectOption: { minHeight: 39, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, selectOptionOn: { backgroundColor: "#EFF7FF" }, selectOptionText: { color: "#56657D", fontSize: 10, fontWeight: "700" }, typeChips: { flexDirection: "row", flexWrap: "wrap", gap: 7 }, typeChip: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 14, backgroundColor: "#F5F7FA", borderWidth: 1, borderColor: "#E8ECF2" }, typeChipOn: { backgroundColor: "#EDF6FF", borderColor: "#CADDF4" }, typeChipText: { color: "#707C91", fontSize: 9, fontWeight: "800" }, typeChipTextOn: { color: "#5E85C0" }, modalBtns: { marginTop: 16, flexDirection: "row", gap: 8 }, delete: { height: 46, paddingHorizontal: 12, borderRadius: 14, flexDirection: "row", gap: 5, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF0F3" }, deleteText: { color: "#D66B80", fontSize: 9, fontWeight: "900" }, cancel: { flex: 1, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#EEF0F5" }, cancelText: { color: PX.muted, fontWeight: "900", fontSize: 9 }, savePress: { flex: 1.5 }, save: { height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" }, saveText: { color: "#FFF", fontWeight: "900", fontSize: 9 },
+  safe: { flex: 1, backgroundColor: "#FFFFFF" }, scroll: { padding: 22, paddingBottom: 130 }, max: { width: "100%", maxWidth: 760, alignSelf: "center", gap: 18 }, topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }, sectionTitle: { color: PX.ink, fontSize: 24, fontWeight: "900" }, sectionSub: { marginTop: 4, color: PX.muted, fontSize: 10, fontWeight: "600" },
+  addButton: { borderRadius: 24, overflow: "hidden", boxShadow: "0 10px 24px rgba(91,135,208,.18)" }, addGradient: { minHeight: 48, paddingHorizontal: 16, borderRadius: 24, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }, addText: { color: "#FFF", fontSize: 10, fontWeight: "900" }, grid: { gap: 10 }, card: { minHeight: 96, borderRadius: 25, padding: 14, flexDirection: "row", alignItems: "center", gap: 13, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E6E9EF", boxShadow: "0 10px 26px rgba(41,54,82,.055)" }, copy: { flex: 1, minWidth: 0 }, icon: { width: 58, height: 58, borderRadius: 19, alignItems: "center", justifyContent: "center" }, fileTitle: { color: PX.ink, fontSize: 14, fontWeight: "900" }, meta: { marginTop: 5, color: "#68758B", fontSize: 9.5, fontWeight: "700" }, updated: { marginTop: 4, color: "#98A1AE", fontSize: 8.5, fontWeight: "700" }, openPill: { minHeight: 34, paddingHorizontal: 10, borderRadius: 17, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#EEF4FF" }, openPillText: { color: "#6686C9", fontSize: 8.5, fontWeight: "900" }, pressed: { opacity: 0.78, transform: [{ scale: 0.995 }] },
+  empty: { minHeight: 180, borderRadius: 28, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: "#F8FAFD", borderWidth: 1, borderColor: "#E9ECF1" }, emptyTitle: { marginTop: 10, color: PX.ink, fontSize: 15, fontWeight: "900" }, emptyBody: { marginTop: 6, maxWidth: 330, color: "#7E899B", fontSize: 10, lineHeight: 15, fontWeight: "600", textAlign: "center" }, note: { minHeight: 82, padding: 15, borderRadius: 24, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#F8FAFF" }, noteTitle: { color: "#51647F", fontSize: 10, fontWeight: "900" }, noteText: { marginTop: 4, color: "#7C899B", fontSize: 9, lineHeight: 14, fontWeight: "600" },
+  backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(13,20,36,.44)" }, modal: { width: "100%", maxWidth: 560, borderRadius: 29, padding: 20, backgroundColor: "#FFFFFF", boxShadow: "0 24px 70px rgba(25,35,58,.22)" }, previewModal: { maxWidth: 780, maxHeight: "92%" }, modalHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 15 }, modalTitle: { color: PX.ink, fontSize: 20, fontWeight: "900" }, modalSub: { marginTop: 4, color: "#7C8798", fontSize: 9, fontWeight: "600" }, close: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#F4F6F9" }, uploadVisual: { minHeight: 210, marginBottom: 16, borderRadius: 24, overflow: "hidden", alignItems: "center", justifyContent: "center", padding: 20 }, uploadTitle: { marginTop: 12, color: PX.ink, fontSize: 16, fontWeight: "900" }, uploadBody: { marginTop: 6, maxWidth: 340, color: "#768398", fontSize: 9.5, lineHeight: 14, fontWeight: "600", textAlign: "center" },
+  preview: { height: 440, borderRadius: 23, overflow: "hidden", backgroundColor: "#F2F5F9", borderWidth: 1, borderColor: "#E5E9EF" }, genericPreview: { flex: 1, alignItems: "center", justifyContent: "center", padding: 26 }, genericIcon: { width: 112, height: 112, borderRadius: 34, alignItems: "center", justifyContent: "center" }, genericTitle: { marginTop: 15, maxWidth: 420, color: PX.ink, fontSize: 16, fontWeight: "900", textAlign: "center" }, genericBody: { marginTop: 8, maxWidth: 460, color: "#7A8699", fontSize: 10, lineHeight: 15, fontWeight: "600", textAlign: "center" }, previewActions: { marginTop: 15, flexDirection: "row", alignItems: "center", gap: 8 }, secondaryButton: { height: 50, paddingHorizontal: 13, borderRadius: 25, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#F4F6F9" }, secondaryText: { color: "#657792", fontSize: 9.5, fontWeight: "900" }, editPanel: { marginTop: 14, padding: 14, borderRadius: 20, backgroundColor: "#F8FAFD" }, label: { marginBottom: 7, color: "#65728A", fontSize: 9, fontWeight: "900" }, typeRow: { paddingBottom: 12, gap: 7 }, typeChip: { minHeight: 34, paddingHorizontal: 11, borderRadius: 17, justifyContent: "center", backgroundColor: "#F1F3F7" }, typeChipOn: { backgroundColor: "#EAF1FF" }, typeChipText: { color: "#7C8798", fontSize: 8.5, fontWeight: "800" }, typeChipTextOn: { color: "#6083C9" },
 });
