@@ -37,14 +37,15 @@ export function ItineraryScreen() {
   const { tripId: raw } = useLocalSearchParams<{ tripId: string }>();
   const tripId = String(raw ?? "local-japan");
   const { trip } = useTripLite(tripId);
-  const { state, addActivity, updateActivity, deleteActivity, setDayCount } = useLocalTripWorkspace(tripId);
+  const { state, addActivity, updateActivity, deleteActivity, setDayCount, deleteDay } = useLocalTripWorkspace(tripId);
   const [day, setDay] = useState(1);
   const [filter, setFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [editor, setEditor] = useState<LocalActivity | null | "new">(null);
   const [weather, setWeather] = useState<TripWeather | null>(null);
+  const [deleteDayOpen, setDeleteDayOpen] = useState(false);
 
-  const totalDays = useMemo(() => Math.max(tripDayCount(trip.startDate, trip.endDate, state.activities), state.dayCountOverride ?? 1), [trip.startDate, trip.endDate, state.activities, state.dayCountOverride]);
+  const totalDays = useMemo(() => state.manualDayCount ?? Math.max(tripDayCount(trip.startDate, trip.endDate, state.activities), state.dayCountOverride ?? 1), [trip.startDate, trip.endDate, state.activities, state.dayCountOverride, state.manualDayCount]);
   const dayItems = useMemo(() => state.activities.filter((a) => a.dayNumber === day).sort((a, b) => a.startTime.localeCompare(b.startTime)), [state.activities, day]);
   const mapItems = useMemo(() => {
     if (!filter) return state.activities;
@@ -55,6 +56,7 @@ export function ItineraryScreen() {
 
   useEffect(() => {
     const anchor = dayItems.find((item) => item.latitude != null && item.longitude != null);
+// eslint-disable-next-line react-hooks/set-state-in-effect -- weather state must clear when the selected itinerary day has no geocoded anchor
     if (!anchor || anchor.latitude == null || anchor.longitude == null) { setWeather(null); return; }
     let live = true;
     void fetchTripWeather(anchor.latitude, anchor.longitude, anchor.locationName).then((value) => { if (live) setWeather(value); });
@@ -83,6 +85,9 @@ export function ItineraryScreen() {
         <Pressable accessibilityLabel="Add another trip day" onPress={() => { const next = totalDays + 1; setDayCount(next); setDay(next); }} style={[s.dayGlass, s.addDayGlass]}>
           <Ionicons name="add" size={17} color="#42536E"/><Text style={s.addDayText}>Add day</Text>
         </Pressable>
+        <Pressable accessibilityLabel="Delete current trip day" onPress={() => setDeleteDayOpen(true)} style={[s.dayGlass, s.deleteDayGlass]}>
+          <Ionicons name="trash-outline" size={16} color="#CB7187"/><Text style={s.deleteDayText}>Delete day</Text>
+        </Pressable>
       </ScrollView>
 
       <View style={s.timelineCard}>
@@ -92,9 +97,20 @@ export function ItineraryScreen() {
           const meta = CATEGORY_META[a.category] ?? CATEGORY_META.other;
           return <View key={a.id} style={s.row}><View style={s.timeCol}><Text style={s.time}>{clock(a.startTime)}</Text></View><View style={s.rail}><View style={s.dot}><View style={s.dotInner}/></View>{i < dayItems.length - 1 ? <View style={s.line}/> : null}</View><View style={[s.activity, selected === a.id && s.activityOn]}><Pressable onPress={() => setSelected(a.id)} style={s.activityMain}><PremiumCategoryIcon category={a.category} size={48}/><View style={s.activityCopy}><Text style={s.activityTitle}>{a.title}</Text><Text style={s.activityPlace}>{a.locationName}</Text>{a.detail ? <Text style={s.activityDetail}>{a.detail}</Text> : null}</View>{a.estimatedCost > 0 ? <Text style={s.cost}>${a.estimatedCost}</Text> : null}</Pressable><Pressable accessibilityLabel={`Edit ${a.title}`} onPress={() => setEditor(a)} style={s.edit}><Ionicons name="create-outline" size={19} color="#6D82A4"/></Pressable></View></View>;
         })}
-        <Pressable onPress={() => setEditor("new")} style={({ pressed }) => pressed && { opacity: .8 }}><LinearGradient colors={["#EDF7FF", "#FBEFF6"]} style={s.addActivity}><Ionicons name="add-circle-outline" size={19} color="#6E96D7"/><Text style={s.addActivityText}>Add activity to Day {day}</Text></LinearGradient></Pressable>
+        <Pressable onPress={() => setEditor("new")} style={({ pressed }) => pressed && { opacity: .8 }}><LinearGradient colors={["#74CEF3", "#8EABF7", "#F1A7C9"]} start={{x:0,y:0}} end={{x:1,y:1}} style={s.addActivity}><View style={[s.actionHighlight, { pointerEvents: "none" }]} /><Ionicons name="add-circle-outline" size={19} color="#FFFFFF"/><Text style={s.addActivityText}>Add activity to Day {day}</Text><Ionicons name="chevron-forward" size={16} color="#FFFFFF"/></LinearGradient></Pressable>
       </View>
     </View></ScrollView>
+    <Modal visible={deleteDayOpen} transparent animationType="fade" onRequestClose={() => setDeleteDayOpen(false)}>
+      <View style={s.backdrop}><View style={[s.modal, s.deleteDayModal]}>
+        <View style={s.deleteDayIcon}><Ionicons name="trash-outline" size={25} color="#CF7188"/></View>
+        <Text style={s.deleteDayTitle}>Delete Day {day}?</Text>
+        <Text style={s.deleteDayBody}>Activities on this day will be removed and later days will shift forward.</Text>
+        <View style={s.deleteDayActions}>
+          <Pressable onPress={() => setDeleteDayOpen(false)} style={s.deleteDayCancel}><Text style={s.deleteDayCancelText}>Cancel</Text></Pressable>
+          <Pressable onPress={() => { const next = Math.max(1, totalDays - 1); deleteDay(day); setDay(Math.min(Math.max(1, day - 1), next)); setDeleteDayOpen(false); }} style={s.deleteDayConfirm}><Text style={s.deleteDayConfirmText}>Delete day</Text></Pressable>
+        </View>
+      </View></View>
+    </Modal>
     <ActivityModal key={`activity-modal-${editor === "new" ? "new" : editor?.id ?? "idle"}-${day}`} value={editor} day={day} onClose={() => setEditor(null)} onSave={(input) => {
       if (editor && editor !== "new") updateActivity(editor.id, input);
       else addActivity({ dayNumber: day, ...input });
@@ -167,6 +183,17 @@ function weatherIcon(label?: string): TravaIconName {
 }
 
 const s = StyleSheet.create({
+  deleteDayGlass: { backgroundColor: "#FFF3F6", borderColor: "#F2D4DD" },
+  deleteDayText: { color: "#C36C83", fontSize: 9, fontWeight: "900" },
+  deleteDayModal: { maxWidth: 420, alignItems: "center" },
+  deleteDayIcon: { width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF0F4" },
+  deleteDayTitle: { marginTop: 15, color: "#172037", fontSize: 19, fontWeight: "900" },
+  deleteDayBody: { marginTop: 7, color: "#778398", fontSize: 10, lineHeight: 15, fontWeight: "600", textAlign: "center" },
+  deleteDayActions: { width: "100%", marginTop: 18, flexDirection: "row", gap: 9 },
+  deleteDayCancel: { flex: 1, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: "#F3F5F8" },
+  deleteDayCancelText: { color: "#66748A", fontSize: 10, fontWeight: "900" },
+  deleteDayConfirm: { flex: 1, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: "#E8879D" },
+  deleteDayConfirmText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900" },
   safe: { flex: 1, backgroundColor: "#FFF" }, scroll: { padding: 22, paddingBottom: 130 }, max: { width: "100%", maxWidth: 640, alignSelf: "center", gap: 18 },
   mapCard: { position: "relative", borderRadius: 28 }, mapLabel: { position: "absolute", left: 16, top: 14, zIndex: 11, maxWidth: 230, minHeight: 44, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 17, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,.96)", borderWidth: 1, borderColor: "#E8EEF6", boxShadow: "0 8px 18px rgba(60,75,105,.10)" }, mapLabelTitle: { color: PX.ink, fontSize: 10, fontWeight: "900" }, mapLabelSub: { marginTop: 1, color: PX.muted, fontSize: 8, fontWeight: "600" },
   filters: { position: "absolute", left: 16, right: 16, top: 66, zIndex: 10, gap: 8, paddingRight: 10 }, filter: { height: 40, paddingHorizontal: 12, borderRadius: 20, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,.96)", borderWidth: 1, borderColor: "#E9EEF5", boxShadow: "0 7px 16px rgba(60,75,105,.08)" }, filterOn: { backgroundColor: "#EEF6FF", borderColor: "#C9DDF6" }, filterText: { color: "#40516F", fontSize: 10, fontWeight: "800" }, filterTextOn: { color: "#5D86C8" }, clearFilter: { width: 42, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,.96)", borderWidth: 1, borderColor: "#E9EEF5" },
@@ -176,6 +203,6 @@ const s = StyleSheet.create({
   empty: { marginVertical: 14, padding: 20, borderRadius: 20, alignItems: "center", backgroundColor: "#F8FBFF" }, emptyIcon: { width: 50, height: 50, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "#EAF4FF" }, emptyTitle: { marginTop: 10, color: PX.ink, fontSize: 13, fontWeight: "900" }, emptySub: { marginTop: 5, maxWidth: 360, textAlign: "center", color: PX.muted, fontSize: 9, lineHeight: 14, fontWeight: "600" },
   row: { minHeight: 104, flexDirection: "row" }, timeCol: { width: 93, paddingTop: 26 }, time: { color: "#4D608A", fontSize: 13, fontWeight: "800" }, rail: { width: 28, alignItems: "center" }, dot: { marginTop: 28, width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: "#84A9E1", alignItems: "center", justifyContent: "center", backgroundColor: "#FFF", zIndex: 2 }, dotInner: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#84A9E1" }, line: { width: 2, flex: 1, backgroundColor: "#D1DFF1" },
   activity: { flex: 1, minHeight: 92, marginBottom: 12, padding: 10, borderRadius: 22, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#FFF", borderWidth: 1, borderColor: "#EEF0F5", boxShadow: "0 8px 20px rgba(71,76,109,.06)" }, activityOn: { borderColor: "#BCD4F1", backgroundColor: "#FCFDFF" }, activityMain: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 12 }, activityIcon: { width: 54, height: 54, borderRadius: 18, alignItems: "center", justifyContent: "center" }, activityCopy: { flex: 1, minWidth: 0 }, activityTitle: { color: PX.ink, fontSize: 13, fontWeight: "900" }, activityPlace: { marginTop: 3, color: "#52628A", fontSize: 10, fontWeight: "700" }, activityDetail: { marginTop: 2, color: "#7D88A0", fontSize: 9, fontWeight: "600" }, cost: { color: "#688AC0", fontSize: 13, fontWeight: "900" }, edit: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "#F7F9FC" },
-  addActivity: { height: 56, borderRadius: 20, flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#E4EDF8" }, addActivityText: { color: "#6288C6", fontSize: 13, fontWeight: "900" },
+  addActivity: { height: 56, borderRadius: 28, overflow: "hidden", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "rgba(255,255,255,.90)", boxShadow: "0 11px 26px rgba(70,153,245,.22)" }, actionHighlight: { position:"absolute", left:10, right:10, top:5, height:17, borderRadius:12, backgroundColor:"rgba(255,255,255,.25)" }, addActivityText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },
   backdrop: { flex: 1, alignItems: "center", justifyContent: "center", padding: 22, backgroundColor: "rgba(12,18,38,.42)" }, modal: { width: "100%", maxWidth: 500, maxHeight: "88%", padding: 20, borderRadius: 26, backgroundColor: "#FFF" }, modalHead: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }, modalTitle: { color: PX.ink, fontSize: 19, fontWeight: "900" }, modalSub: { marginTop: 3, color: PX.muted, fontSize: 9, fontWeight: "600" }, closeBtn: { width: 36, height: 36, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "#F5F7FA" }, modalScroll: { paddingTop: 8, paddingBottom: 2 }, fieldLabel: { marginTop: 11, marginBottom: 6, color: "#526079", fontSize: 9, fontWeight: "900" }, input: { height: 50, paddingHorizontal: 14, borderRadius: 16, backgroundColor: "#F6F8FC", borderWidth: 1, borderColor: "#E8ECF3", color: PX.ink, fontSize: 12, fontWeight: "700" }, categoryRow: { gap: 7, paddingBottom: 2 }, categoryChip: { minHeight: 37, paddingHorizontal: 11, borderRadius: 18, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#F7F8FB", borderWidth: 1, borderColor: "#E9ECF2" }, categoryChipOn: { backgroundColor: "#EEF6FF", borderColor: "#C8DDF7" }, categoryText: { color: "#707C90", fontSize: 9, fontWeight: "800" }, categoryTextOn: { color: "#5E85C6" }, locationConfirmed: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 6 }, locationConfirmedText: { color: "#5C8E7D", fontSize: 9, fontWeight: "700" }, modalRow: { flexDirection: "row", gap: 8 }, flex: { flex: 1 }, errorBox: { marginTop: 12, padding: 10, borderRadius: 13, flexDirection: "row", gap: 7, alignItems: "flex-start", backgroundColor: "#FFF4F6" }, errorText: { flex: 1, color: "#B75E70", fontSize: 9, lineHeight: 14, fontWeight: "700" }, modalActions: { marginTop: 16, flexDirection: "row", gap: 8 }, deleteBtn: { height: 46, paddingHorizontal: 14, borderRadius: 14, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF0F3" }, deleteText: { color: "#D65E76", fontWeight: "900", fontSize: 10 }, cancelBtn: { flex: 1, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#EEF0F5" }, cancelText: { color: PX.muted, fontWeight: "900", fontSize: 10 }, savePress: { flex: 1.6, height: 46 }, saveBtn: { flex: 1, borderRadius: 14, alignItems: "center", justifyContent: "center" }, saveText: { color: "#FFF", fontWeight: "900", fontSize: 10 },
 });
