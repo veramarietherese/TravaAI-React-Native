@@ -56,7 +56,7 @@ export function PremiumCategoryIcon({ category, size = 46, style }: { category: 
   return (
     <View style={[styles.host, { width: size, height: size }, style]}>
       <LinearGradient colors={meta.colors} start={{ x: .08, y: .08 }} end={{ x: .92, y: .92 }} style={[styles.tile, { width: size, height: size, borderRadius: size * .31 }]}>
-        <View pointerEvents="none" style={styles.softHighlight} />
+        <View style={[styles.softHighlight, { pointerEvents: "none" }]} />
         <Ionicons name={meta.icon} size={Math.max(18, Math.round(size * .46))} color={meta.color} />
       </LinearGradient>
     </View>
@@ -67,7 +67,7 @@ export function PremiumActionGlyph({ icon, size = 58, colors = ["rgba(244,246,25
   return (
     <View style={[styles.host, { width: size, height: size }]}>
       <LinearGradient colors={colors} start={{ x: .08, y: .08 }} end={{ x: .92, y: .92 }} style={[styles.tile, { width: size, height: size, borderRadius: size * .31 }]}>
-        <View pointerEvents="none" style={styles.softHighlight} />
+        <View style={[styles.softHighlight, { pointerEvents: "none" }]} />
         <Ionicons name={icon} size={Math.max(19, Math.round(size * .43))} color={color} />
       </LinearGradient>
     </View>
