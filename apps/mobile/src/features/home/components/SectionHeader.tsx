@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   action: { flexDirection: "row", alignItems: "center", gap: 3, paddingVertical: 5 },
-  actionText: { color: "#7557EF", fontSize: 13, fontWeight: "800" },
-  chevron: { color: "#7557EF", fontSize: 22, lineHeight: 22, fontWeight: "700" },
+  actionText: { color: "#7695E8", fontSize: 13, fontWeight: "800" },
+  chevron: { color: "#7695E8", fontSize: 22, lineHeight: 22, fontWeight: "700" },
   pressed: { opacity: 0.65 },
 });
