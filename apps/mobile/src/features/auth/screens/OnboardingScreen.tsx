@@ -2,14 +2,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { type Href, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  Animated,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions, Platform } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuthProgress } from "../components/AuthProgress";
@@ -53,10 +46,10 @@ export function OnboardingScreen() {
   }, []);
 
   const transitionTo = (nextIndex: number) => {
-    Animated.timing(opacity, { toValue: 0, duration: 90, useNativeDriver: true }).start(() => {
+    Animated.timing(opacity, { toValue: 0, duration: 90, useNativeDriver: Platform.OS !== "web" }).start(() => {
       setIndex(nextIndex);
       void setOnboardingStep(nextIndex);
-      Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+      Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: Platform.OS !== "web" }).start();
     });
   };
 
@@ -120,9 +113,7 @@ export function OnboardingScreen() {
           style={[StyleSheet.absoluteFill, styles.tapLayer]}
         />
 
-        <View
-          pointerEvents="box-none"
-          style={[
+        <View style={[{ pointerEvents: "box-none" }, 
             styles.topBar,
             {
               paddingTop: Math.max(insets.top, 8),
@@ -157,9 +148,7 @@ export function OnboardingScreen() {
           </View>
         </View>
 
-        <View
-          pointerEvents="box-none"
-          style={[
+        <View style={[{ pointerEvents: "box-none" }, 
             styles.bottomWrap,
             {
               paddingHorizontal: narrowWidth ? 14 : 20,
@@ -243,9 +232,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "800",
-    textShadowColor: "rgba(0,0,0,0.34)",
-    textShadowRadius: 8,
-  },
+    },
   bottomWrap: {
     position: "absolute",
     left: 0,
@@ -266,10 +253,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
-    shadowColor: "#020617",
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
     elevation: 5,
   },
   compactPrimaryButton: { minHeight: 50 },
