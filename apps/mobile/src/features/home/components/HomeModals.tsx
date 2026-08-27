@@ -278,7 +278,7 @@ export function ListingDetailsModal({
             onPress={onSubmitFeedback}
             style={[styles.feedbackButton, submittingFeedback && styles.disabledButton]}
           >
-            {submittingFeedback ? <ActivityIndicator color="#6A51DD" /> : <Text style={styles.feedbackButtonText}>Submit feedback</Text>}
+            {submittingFeedback ? <ActivityIndicator color="#718FD8" /> : <Text style={styles.feedbackButtonText}>Submit feedback</Text>}
           </Pressable>
         </View>
 
@@ -306,15 +306,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderRadius: 26,
     backgroundColor: "#FFFFFF",
-    shadowColor: "#11182C",
-    shadowOpacity: 0.26,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 18 },
     elevation: 12,
   },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14, padding: 20, paddingBottom: 12 },
   headerCopy: { flex: 1 },
-  eyebrow: { color: "#7558F0", fontSize: 10, lineHeight: 13, letterSpacing: 1.3, fontWeight: "900" },
+  eyebrow: { color: "#7695E8", fontSize: 10, lineHeight: 13, letterSpacing: 1.3, fontWeight: "900" },
   modalTitle: { marginTop: 3, color: "#17233E", fontSize: 23, lineHeight: 28, fontWeight: "900", letterSpacing: -0.5 },
   closeButton: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: "#F3F4FA" },
   closeGlyph: { color: "#4A5872", fontSize: 25, lineHeight: 27, fontWeight: "600" },
@@ -322,12 +318,12 @@ const styles = StyleSheet.create({
   notificationContent: { paddingHorizontal: 18, paddingBottom: 20, gap: 10 },
   notificationItem: { flexDirection: "row", alignItems: "center", gap: 11, padding: 13, borderRadius: 16, backgroundColor: "#F7F6FF" },
   notificationIcon: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: 13, backgroundColor: "#EAE6FF" },
-  notificationIconText: { color: "#7558F0", fontSize: 19, fontWeight: "900" },
+  notificationIconText: { color: "#7695E8", fontSize: 19, fontWeight: "900" },
   notificationCopy: { flex: 1, minWidth: 0 },
   notificationTitle: { color: "#25324E", fontSize: 13, fontWeight: "900" },
   notificationMessage: { marginTop: 3, color: "#758198", fontSize: 11, lineHeight: 16, fontWeight: "600" },
   inlineAction: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: "#FFFFFF" },
-  inlineActionText: { color: "#684CDC", fontSize: 10, fontWeight: "900" },
+  inlineActionText: { color: "#718FD8", fontSize: 10, fontWeight: "900" },
   emptyModalState: { minHeight: 180, alignItems: "center", justifyContent: "center", padding: 24 },
   emptyModalIcon: { color: "#19A974", fontSize: 30, fontWeight: "900" },
   emptyModalTitle: { marginTop: 8, color: "#25324E", fontSize: 16, fontWeight: "900" },
@@ -348,7 +344,7 @@ const styles = StyleSheet.create({
   heroButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: "rgba(255,255,255,0.9)" },
   heroButtonText: { color: "#33415E", fontSize: 25, lineHeight: 28, fontWeight: "700" },
   heroHeart: { color: "#53617B", fontSize: 24, lineHeight: 27, fontWeight: "700" },
-  heroHeartActive: { color: "#FF4E91" },
+  heroHeartActive: { color: "#E77FA9" },
   detailsHeroCopy: { position: "absolute", left: 20, right: 20, bottom: 18 },
   detailsEyebrow: { color: "#E9E7FF", fontSize: 10, letterSpacing: 1.3, fontWeight: "900" },
   detailsTitle: { marginTop: 4, color: "#FFFFFF", fontSize: 25, lineHeight: 29, fontWeight: "900", letterSpacing: -0.5 },
@@ -366,7 +362,7 @@ const styles = StyleSheet.create({
   starActive: { color: "#F5B62E" },
   commentInput: { minHeight: 84, marginTop: 10, padding: 11, borderWidth: 1, borderColor: "#E0E4EF", borderRadius: 12, color: "#1A2743", backgroundColor: "#FFFFFF", fontSize: 12, lineHeight: 17 },
   feedbackButton: { minHeight: 42, marginTop: 11, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#D8CEFF", borderRadius: 12, backgroundColor: "#FFFFFF" },
-  feedbackButtonText: { color: "#6A51DD", fontSize: 12, fontWeight: "900" },
+  feedbackButtonText: { color: "#718FD8", fontSize: 12, fontWeight: "900" },
   primaryWideButton: { minHeight: 49, marginHorizontal: 16, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: "#111B34" },
   primaryWideButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" },
 });
