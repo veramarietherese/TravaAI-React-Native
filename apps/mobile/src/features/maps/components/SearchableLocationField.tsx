@@ -53,6 +53,7 @@ export function SearchableLocationField({
   useEffect(() => {
     const q = value.trim();
     if (!open || q.length < 3) {
+// eslint-disable-next-line react-hooks/set-state-in-effect -- closing or shortening the query intentionally clears stale remote location results
       setRemote([]);
       setLoading(false);
       setMessage(null);
