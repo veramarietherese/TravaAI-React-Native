@@ -8,7 +8,7 @@ export function TripMapSurface({ activities, selectedActivityId, onSelectActivit
   const frameRef = useRef<Frame | null>(null);
   const html = useMemo(() => makeMapHtml(activities, selectedActivityId), [activities, selectedActivityId]);
   useEffect(() => { const fn=(event:MessageEvent)=>{ if(event.source!==frameRef.current?.contentWindow)return; const p=event.data as {type?:string;id?:string}; if(p?.type==="trava-select"&&p.id) onSelectActivity?.(p.id);}; window.addEventListener("message",fn); return()=>window.removeEventListener("message",fn); },[onSelectActivity]);
-  return <View style={[styles.wrap,{height}]}>{createElement("iframe",{ref:frameRef as never,title:"Interactive TRAVA itinerary map",srcDoc:html,sandbox:"allow-scripts allow-same-origin",style:{width:"100%",height:"100%",border:0,display:"block",background:"#eef2f5"}})}</View>;
+  return <View style={[styles.wrap,{height}]}>{createElement("iframe",{ref:frameRef as never,title:"Interactive TRAVA itinerary map",srcDoc:html,sandbox:"allow-scripts",style:{width:"100%",height:"100%",border:0,display:"block",background:"#eef2f5"}})}</View>;
 }
 
 function makeMapHtml(activities:TripMapSurfaceProps["activities"], selected:string|null|undefined){
