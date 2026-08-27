@@ -175,7 +175,8 @@ async function airportName(iata: string | null, apiKey: string): Promise<string 
       _fields: "name,iata_code",
       limit: "1",
     }, apiKey);
-    const name = rows.length ? firstText(rows[0], ["name", "airport_name"]) : null;
+    const firstRow = rows[0];
+    const name = firstRow ? firstText(firstRow, ["name", "airport_name"]) : null;
     airportCache.set(code, { createdAt: Date.now(), name });
     if (airportCache.size > 400) airportCache.delete(airportCache.keys().next().value ?? code);
     return name;
