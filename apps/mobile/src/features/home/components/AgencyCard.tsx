@@ -1,7 +1,10 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { HomeTravelAgency } from "../types/home.types";
+import { AgencyBrandMark } from "./AgencyBrandMark";
 
 interface AgencyCardProps {
   agency: HomeTravelAgency;
@@ -11,100 +14,64 @@ interface AgencyCardProps {
   width?: number;
 }
 
-export function AgencyCard({ agency, favorite, onOpen, onToggleFavorite, width = 286 }: AgencyCardProps) {
-  return (
-    <View style={[styles.card, { width }]}>
-      <View style={styles.content}>
-        <View style={styles.topRow}>
-          <View style={styles.logo}>
-            {agency.logoUrl ? (
-              <Image source={{ uri: agency.logoUrl }} contentFit="cover" style={StyleSheet.absoluteFill} transition={150} />
-            ) : (
-              <Text style={styles.logoText}>{agency.name.slice(0, 1).toUpperCase()}</Text>
-            )}
-          </View>
-          <View style={styles.copy}>
-            <Text numberOfLines={1} style={styles.name}>{agency.name}</Text>
-            <Text numberOfLines={1} style={styles.subtitle}>{agency.subtitle || "Verified travel partner"}</Text>
-            {agency.rating > 0 ? <Text style={styles.rating}>★ {agency.rating.toFixed(1)}</Text> : null}
-          </View>
-          <View style={styles.favoriteSpacer} />
-        </View>
+const FALLBACK =
+  "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1000&q=78";
 
-        <View style={styles.tags}>
-          {(agency.specialties.length ? agency.specialties : ["Trips", "Support"]).slice(0, 3).map((tag) => (
-            <Text key={tag} numberOfLines={1} style={styles.tag}>{tag}</Text>
+export function AgencyCard({ agency, favorite, onOpen, onToggleFavorite, width = 292 }: AgencyCardProps) {
+  const specialties = (agency.specialties.length ? agency.specialties : ["Curated trips", "Direct chat"]).slice(0, 2);
+  return (
+    <View style={[s.card, { width }]}>
+      <Pressable onPress={onOpen} style={({ pressed }) => [s.imageArea, pressed && s.pressed]}>
+        <Image source={{ uri: agency.coverImageUrl || FALLBACK }} contentFit="cover" style={StyleSheet.absoluteFill} transition={150} />
+        <LinearGradient colors={["rgba(17,24,36,.02)", "rgba(17,24,36,.22)"]} style={StyleSheet.absoluteFill} />
+        <AgencyBrandMark name={agency.name} logoUrl={agency.logoUrl} size={54} style={s.logo} />
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={favorite ? "Remove saved agency" : "Save agency"} onPress={onToggleFavorite} style={({ pressed }) => [s.favorite, pressed && s.pressed]}>
+        <Ionicons name={favorite ? "heart" : "heart-outline"} size={20} color="#FFFFFF" />
+      </Pressable>
+      <View style={s.body}>
+        <View style={s.titleRow}>
+          <Text numberOfLines={1} style={s.title}>{agency.name}</Text>
+          <View style={s.rating}><Ionicons name="star" size={13} color="#E8A23E" /><Text style={s.ratingText}>{agency.rating > 0 ? agency.rating.toFixed(1) : "New"}</Text></View>
+        </View>
+        <View style={s.location}><Ionicons name="shield-checkmark-outline" size={16} color="#667180" /><Text numberOfLines={1} style={s.locationText}>{agency.subtitle || "Verified TRAVA travel partner"}</Text></View>
+        <View style={s.details}>
+          {specialties.map((item, index) => (
+            <View key={`${agency.id}-${item}-${index}`} style={s.detail}>
+              <Ionicons name={index === 0 ? "compass-outline" : "chatbubble-ellipses-outline"} size={15} color="#23272D" />
+              <Text numberOfLines={1} style={s.detailText}>{item}</Text>
+            </View>
           ))}
         </View>
-
-        <View style={styles.openButton}>
-          <Text style={styles.openText}>View agency</Text>
-          <Text style={styles.chevron}>›</Text>
+        <View style={s.footer}>
+          <View><Text style={s.partner}>TRAVA Partner</Text><Text style={s.caption}>{specialties.length} specialties</Text></View>
+          <Pressable onPress={onOpen} style={({ pressed }) => [s.cta, pressed && s.ctaPressed]}><Text style={s.ctaText}>View</Text><Ionicons name="arrow-forward" size={15} color="#FFFFFF" /></Pressable>
         </View>
       </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${agency.name}`}
-        onPress={onOpen}
-        style={({ pressed }) => [styles.cardHitArea, pressed && styles.cardHitAreaPressed]}
-      />
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={favorite ? "Remove agency from favorites" : "Add agency to favorites"}
-        onPress={onToggleFavorite}
-        style={({ pressed }) => [styles.favorite, pressed && styles.pressed]}
-      >
-        <Text style={[styles.favoriteGlyph, favorite && styles.favoriteActive]}>{favorite ? "♥" : "♡"}</Text>
-      </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    position: "relative",
-    padding: 15,
-    borderWidth: 1,
-    borderColor: "#E8EAF1",
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    boxShadow: "0 12px 28px rgba(55,64,99,0.08)",
-  },
-  content: { pointerEvents: "none" },
-  cardHitArea: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-    borderRadius: 20,
-  },
-  cardHitAreaPressed: { backgroundColor: "rgba(90,103,150,0.035)" },
-  topRow: { flexDirection: "row", alignItems: "center", gap: 11 },
-  logo: { width: 58, height: 58, overflow: "hidden", alignItems: "center", justifyContent: "center", borderRadius: 999, backgroundColor: "#7558F0" },
-  logoText: { color: "#FFFFFF", fontSize: 22, fontWeight: "900" },
-  copy: { flex: 1, minWidth: 0 },
-  name: { color: "#1A2743", fontSize: 14, lineHeight: 18, fontWeight: "900" },
-  subtitle: { marginTop: 3, color: "#758198", fontSize: 10, lineHeight: 14, fontWeight: "600" },
-  rating: { marginTop: 4, color: "#E29A1A", fontSize: 10, fontWeight: "800" },
-  favoriteSpacer: { width: 34, height: 34 },
-  favorite: {
-    position: "absolute",
-    zIndex: 2,
-    top: 15,
-    right: 15,
-    width: 34,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 999,
-    backgroundColor: "#F7F6FF",
-  },
-  favoriteGlyph: { color: "#53617B", fontSize: 22, lineHeight: 24, fontWeight: "700" },
-  favoriteActive: { color: "#FF4E91" },
-  tags: { marginTop: 11, flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  tag: { maxWidth: 94, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999, color: "#654CDA", backgroundColor: "#F0ECFF", fontSize: 9, fontWeight: "800" },
-  openButton: { marginTop: 12, minHeight: 39, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, borderRadius: 12, backgroundColor: "#F7F8FF" },
-  openText: { color: "#33415F", fontSize: 11, fontWeight: "800" },
-  chevron: { color: "#7558F0", fontSize: 21, fontWeight: "800" },
-  pressed: { opacity: 0.65 },
+const s = StyleSheet.create({
+  card: { overflow: "hidden", borderRadius: 25, padding: 9, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E7E8EA", boxShadow: "0 12px 28px rgba(24,28,35,.09)" },
+  imageArea: { position: "relative", height: 176, overflow: "hidden", borderRadius: 20, backgroundColor: "#EEF1F4" },
+  logo: { position: "absolute", left: 13, bottom: 13, boxShadow: "0 8px 20px rgba(18,27,42,.18)" },
+  favorite: { position: "absolute", right: 19, top: 19, width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(42,48,57,.62)", zIndex: 3 },
+  body: { paddingHorizontal: 5, paddingTop: 12, paddingBottom: 4 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  title: { flex: 1, color: "#111318", fontSize: 16, lineHeight: 20, fontWeight: "900" },
+  rating: { flexDirection: "row", alignItems: "center", gap: 4 },
+  ratingText: { color: "#343840", fontSize: 9, fontWeight: "800" },
+  location: { marginTop: 7, flexDirection: "row", alignItems: "center", gap: 5 },
+  locationText: { flex: 1, color: "#6A707A", fontSize: 10, fontWeight: "600" },
+  details: { marginTop: 9, flexDirection: "row", gap: 10 },
+  detail: { maxWidth: "48%", minWidth: 0, flexDirection: "row", alignItems: "center", gap: 4 },
+  detailText: { flexShrink: 1, color: "#30343A", fontSize: 9, fontWeight: "700" },
+  footer: { marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  partner: { color: "#111318", fontSize: 13, fontWeight: "900" },
+  caption: { marginTop: 1, color: "#858B94", fontSize: 7.5, fontWeight: "700" },
+  cta: { height: 40, minWidth: 92, paddingHorizontal: 15, borderRadius: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#090909" },
+  ctaText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900" },
+  ctaPressed: { opacity: 0.78, transform: [{ scale: 0.985 }] },
+  pressed: { opacity: 0.88 },
 });
