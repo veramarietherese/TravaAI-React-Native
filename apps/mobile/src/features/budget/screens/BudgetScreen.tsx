@@ -57,15 +57,15 @@ export function BudgetScreen() {
       </Pressable>
 
       <View style={s.metrics}>
-        <Glass style={s.metric}><PremiumActionGlyph icon="wallet-outline" size={48} colors={["#FAF4E9", "#EEE2CC"]} color="#806332"/><View style={s.metricCopy}><Text style={s.metricLabel}>Remaining Budget</Text><Text style={s.metricValue}>₱{formatMoney(remaining)}</Text><Text style={s.metricSub}>of ₱{formatMoney(state.totalBudget)}</Text></View></Glass>
-        <Glass style={s.metric}><PremiumActionGlyph icon="trending-up-outline" size={48} colors={["#F4F1FA", "#E4DFF2"]} color="#625E86"/><View style={s.metricCopy}><Text style={s.metricLabel}>Total Spent</Text><Text style={s.metricValue}>₱{formatMoney(spent)}</Text><Text style={s.metricSub}>{state.expenses.length} saved expenses</Text></View></Glass>
+        <Glass style={s.metric}><PremiumActionGlyph icon="wallet-outline" size={48} colors={["#DDF3FF", "#C6E3FF"]} color="#3978CF"/><View style={s.metricCopy}><Text style={s.metricLabel}>Remaining Budget</Text><Text style={s.metricValue}>₱{formatMoney(remaining)}</Text><Text style={s.metricSub}>of ₱{formatMoney(state.totalBudget)}</Text></View></Glass>
+        <Glass style={s.metric}><PremiumActionGlyph icon="trending-up-outline" size={48} colors={["#DDF3FF", "#C6E3FF"]} color="#3978CF"/><View style={s.metricCopy}><Text style={s.metricLabel}>Total Spent</Text><Text style={s.metricValue}>₱{formatMoney(spent)}</Text><Text style={s.metricSub}>{state.expenses.length} saved expenses</Text></View></Glass>
       </View>
 
       <View style={s.actions}>
-        <Action icon="add-outline" label="Add expense" colors={["#F6F1FA", "#E9E1F2"]} color="#625A80" onPress={() => setEditor("new")}/>
-        <Action icon="swap-horizontal-outline" label="Move" colors={["#EEF7F3", "#DCEDE5"]} color="#49705F" onPress={() => setMoveOpen(true)}/>
-        <Action icon="share-outline" label="Send" colors={["#F1F2F8", "#E0E2EF"]} color="#59617C" onPress={() => void sendBudget()}/>
-        <Action icon="card-outline" label="Top up" colors={["#F8F1F4", "#EEDFE5"]} color="#7E5B68" onPress={() => setAmountMode("topup")}/>
+        <Action icon="add-outline" label="Add expense" colors={["#DDF3FF", "#C6E3FF"]} color="#3978CF" onPress={() => setEditor("new")}/>
+        <Action icon="swap-horizontal-outline" label="Move" colors={["#DDF3FF", "#C6E3FF"]} color="#3978CF" onPress={() => setMoveOpen(true)}/>
+        <Action icon="share-outline" label="Send" colors={["#DDF3FF", "#C6E3FF"]} color="#3978CF" onPress={() => void sendBudget()}/>
+        <Action icon="card-outline" label="Top up" colors={["#DDF3FF", "#C6E3FF"]} color="#3978CF" onPress={() => setAmountMode("topup")}/>
       </View>
 
       <Glass style={s.chartCard}>
@@ -106,7 +106,7 @@ function TrendChart({ expenses }: { expenses: LocalExpense[] }) {
   }, [expenses]);
   const total = expenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const polyline = points.map((p) => `${Math.round(p.x * 10)},${Math.round(p.y * 2.15)}`).join(" ");
-  const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 215" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#6E8FD7"/><stop offset=".52" stop-color="#7A73D6"/><stop offset="1" stop-color="#A46C93"/></linearGradient></defs><polyline points="${polyline}" fill="none" stroke="url(#g)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+  const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 215" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#B8DCFF"/><stop offset=".52" stop-color="#5C9BF2"/><stop offset="1" stop-color="#234FAF"/></linearGradient></defs><polyline points="${polyline}" fill="none" stroke="url(#g)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
   return <View style={s.chart}>
     <View style={s.chartSummary}><Text style={s.chartTotal}>₱{formatMoney(total)}</Text><Text style={s.chartCaption}>live saved spending</Text></View>
     <View style={s.linePlot}>
