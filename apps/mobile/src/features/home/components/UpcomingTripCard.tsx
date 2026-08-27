@@ -74,7 +74,7 @@ export function UpcomingTripCard({ trip, onPress, onCreateTrip }: UpcomingTripCa
         </View>
         <View style={styles.progressTrack}>
           <LinearGradient
-            colors={["#FF4C9B", "#7558F0"]}
+            colors={["#FF4C9B", "#7695E8"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={[styles.progressFill, { width: `${progress}%` }]}
@@ -92,10 +92,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#F0F1F7",
-    shadowColor: "#374064",
-    shadowOpacity: 0.11,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
     elevation: 5,
   },
   hero: { minHeight: 205, overflow: "hidden", backgroundColor: "#1C2641" },
@@ -131,7 +127,7 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     backgroundColor: "rgba(255,255,255,0.86)",
   },
-  emptyIcon: { color: "#7558F0", fontSize: 28, fontWeight: "800" },
+  emptyIcon: { color: "#7695E8", fontSize: 28, fontWeight: "800" },
   emptyTitle: { color: "#27344E", fontSize: 17, fontWeight: "900" },
   emptyCopy: { maxWidth: 310, color: "#76839B", fontSize: 13, lineHeight: 19, textAlign: "center", fontWeight: "600" },
   emptyAction: { marginTop: 7, paddingHorizontal: 15, paddingVertical: 10, borderRadius: 12, backgroundColor: "#111B34" },
