@@ -1,20 +1,23 @@
+import { useMemo, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { type Href, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ProfileSettingsModal } from "../components/ProfileSettingsModal";
 import { listTrips } from "@/features/trips/api/trips.api";
 
 const MENU = [
-  ["⚙", "Settings", null],
-  ["♡", "Favorites", null],
-  ["▣", "Payments & Wallet", "Coming soon"],
-  ["☆", "Reviews", null],
-  ["?", "Help & Support", null],
+  { key: "settings", icon: "settings-outline", label: "Settings", badge: null },
+  { key: "favorites", icon: "heart-outline", label: "Favorites", badge: null },
+  { key: "payments", icon: "wallet-outline", label: "Payments & Wallet", badge: "Coming soon" },
+  { key: "reviews", icon: "star-outline", label: "Reviews", badge: null },
+  { key: "help", icon: "help-circle-outline", label: "Help & Support", badge: null },
 ] as const;
 const PASSPORT_VISUAL = require("../../../../assets/images/profile/passport.png");
 const STREAK_MASCOT = require("../../../../assets/images/profile/luggage-mascot.gif");
@@ -22,9 +25,12 @@ const STREAK_MASCOT = require("../../../../assets/images/profile/luggage-mascot.
 export function ProfileScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { user, profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const tripsQuery = useQuery({ queryKey: ["trips"], queryFn: listTrips, staleTime: 60_000 });
   const trips = tripsQuery.data ?? [];
+  const travelStreak = useMemo(() => calculateMonthlyTravelStreak(trips), [trips]);
+  const travelDots = useMemo(() => recentTravelDayIndexes(trips), [trips]);
 
   const metadataName =
     typeof user?.user_metadata?.full_name === "string"
@@ -42,6 +48,17 @@ export function ProfileScreen() {
   const premium = Boolean((profile as { is_premium?: boolean } | null)?.is_premium);
   const contentWidth = Math.min(width - 28, 520);
 
+  function handleMenuPress(key: (typeof MENU)[number]["key"]) {
+    if (key === "favorites") { router.navigate("/(traveler)/(tabs)/home" as Href); return; }
+    if (key === "help") { router.navigate("/(traveler)/(tabs)/ai" as Href); return; }
+    if (key === "reviews") {
+      Alert.alert("Your TRAVA reviews", completed.length ? `You have ${completed.length} completed trip${completed.length === 1 ? "" : "s"} eligible for travel memories and reviews.` : "Complete a trip to unlock package and travel reviews.");
+      return;
+    }
+    if (key === "payments") { Alert.alert("Payments & Wallet", "TRAVA Wallet is not enabled in this build yet."); return; }
+    setSettingsOpen(true);
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <StatusBar style="dark" />
@@ -53,7 +70,7 @@ export function ProfileScreen() {
                 <Text style={styles.title}>Profile<Text style={styles.sparkle}>✣</Text></Text>
                 <Text style={styles.subtitle}>Manage your travel world</Text>
               </View>
-              <View style={styles.headerActions}><CircleButton text="♧" /><CircleButton text="⚙" /></View>
+              <View style={styles.headerActions}><CircleIconButton icon="sparkles-outline" label="Open TRAVA AI" onPress={() => router.navigate("/(traveler)/(tabs)/ai" as Href)} /><CircleIconButton icon="settings-outline" label="Settings" onPress={() => setSettingsOpen(true)} /></View>
             </View>
 
             <View style={styles.profileCard}>
@@ -101,31 +118,69 @@ export function ProfileScreen() {
               <Text style={styles.streakEyebrow}>Monthly Travel Streak ♨</Text>
               <Text style={styles.streakTitle}>0-day{"\n"}streak</Text>
               <Text style={styles.streakText}>Check in today and begin{"\n"}your monthly travel streak.</Text>
-              <Pressable style={styles.challenge}><Text style={styles.challengeText}>♜  View Challenges  ›</Text></Pressable>
+              <Pressable onPress={() => Alert.alert("Travel streak", "Complete travel check-ins and finished trips to build your monthly streak.")} style={styles.challenge}><Ionicons name="trophy-outline" size={13} color="#5D72D5" /><Text style={styles.challengeText}>View Challenges</Text><Ionicons name="chevron-forward" size={12} color="#5D72D5" /></Pressable>
             </View>
-            <View style={styles.streakRing}><Text style={styles.fire}>⌁</Text><Text style={styles.zero}>0</Text><Text style={styles.days}>days</Text></View>
+            <View style={styles.streakRing}><Text style={styles.fire}>⌁</Text><Text style={styles.zero}>{travelStreak}</Text><Text style={styles.days}>days</Text></View>
             <View style={styles.miniMascot}><Image source={STREAK_MASCOT} contentFit="contain" cachePolicy="memory-disk" autoplay style={styles.streakMascotImage} /></View>
-            <View style={styles.dots}>{Array.from({ length: 14 }, (_, index) => <View key={index} style={[styles.dot, index === 13 && styles.dotActive]}><Text style={styles.dotLabel}>{index + 1}</Text></View>)}</View>
+            <View style={styles.dots}>{Array.from({ length: 14 }, (_, index) => <View key={index} style={[styles.dot, travelDots.has(index) && styles.dotActive]}><Text style={styles.dotLabel}>{recentDateLabel(index)}</Text></View>)}</View>
           </LinearGradient>
 
           <View style={styles.menu}>
-            {MENU.map(([icon, label, badge], index) => (
-              <Pressable key={label} style={({ pressed }) => [styles.menuRow, index < MENU.length - 1 && styles.menuBorder, pressed && styles.pressed]}>
-                <View style={styles.menuIcon}><Text style={styles.menuGlyph}>{icon}</Text></View>
-                <Text style={styles.menuLabel}>{label}</Text>
-                {badge ? <View style={styles.badge}><Text style={styles.badgeText}>{badge}</Text></View> : null}
-                <Text style={styles.menuArrow}>›</Text>
+            {MENU.map((item, index) => (
+              <Pressable key={item.key} accessibilityRole="button" accessibilityLabel={item.label} onPress={() => handleMenuPress(item.key)}
+                style={({ pressed }) => [styles.menuRow, index < MENU.length - 1 && styles.menuBorder, pressed && styles.pressed]}>
+                <View style={styles.menuIcon}><Ionicons name={item.icon} size={16} color="#6C68CE" /></View>
+                <Text style={styles.menuLabel}>{item.label}</Text>
+                {item.badge ? <View style={styles.badge}><Text style={styles.badgeText}>{item.badge}</Text></View> : null}
+                <Ionicons name="chevron-forward" size={16} color="#8B94A5" />
               </Pressable>
             ))}
           </View>
         </View>
       </ScrollView>
+      <ProfileSettingsModal visible={settingsOpen} onClose={() => setSettingsOpen(false)} onSignOut={signOut} />
     </SafeAreaView>
   );
 }
 
-function CircleButton({ text }: { text: string }) {
-  return <Pressable style={styles.circleButton}><Text style={styles.circleText}>{text}</Text></Pressable>;
+
+function tripCoversDate(trip: { startDate?: string | null; endDate?: string | null }, day: string) {
+  const start = trip.startDate?.slice(0, 10);
+  const end = (trip.endDate || trip.startDate)?.slice(0, 10);
+  return Boolean(start && end && start <= day && day <= end);
+}
+function dateKey(date: Date) { return date.toISOString().slice(0, 10); }
+function recentDateLabel(index: number) {
+  const day = new Date();
+  day.setUTCDate(day.getUTCDate() - (13 - index));
+  return String(day.getUTCDate());
+}
+function recentTravelDayIndexes(trips: Array<{ startDate?: string | null; endDate?: string | null }>) {
+  const active = new Set<number>();
+  for (let index = 0; index < 14; index += 1) {
+    const day = new Date();
+    day.setUTCHours(0, 0, 0, 0);
+    day.setUTCDate(day.getUTCDate() - (13 - index));
+    if (trips.some((trip) => tripCoversDate(trip, dateKey(day)))) active.add(index);
+  }
+  return active;
+}
+function calculateMonthlyTravelStreak(trips: Array<{ startDate?: string | null; endDate?: string | null }>) {
+  const cursor = new Date();
+  cursor.setUTCHours(0, 0, 0, 0);
+  const month = cursor.getUTCMonth();
+  const year = cursor.getUTCFullYear();
+  let streak = 0;
+  while (cursor.getUTCFullYear() === year && cursor.getUTCMonth() === month) {
+    if (!trips.some((trip) => tripCoversDate(trip, dateKey(cursor)))) break;
+    streak += 1;
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+  return streak;
+}
+
+function CircleIconButton({ icon, label, onPress }: { icon: React.ComponentProps<typeof Ionicons>["name"]; label: string; onPress(): void }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.circleButton, pressed && styles.pressed]}><Ionicons name={icon} size={17} color="#33415F" /></Pressable>;
 }
 function Stat({ icon, value, label }: { icon: string; value: number; label: string }) {
   return <View style={styles.stat}><Text style={styles.statIcon}>{icon}</Text><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>;
@@ -181,19 +236,19 @@ const styles = StyleSheet.create({
   passportLines: { marginTop: 5 },
   linePink: { height: 7, borderRadius: 2, backgroundColor: "#EF6684" },
   lineBlue: { width: "70%", height: 6, marginTop: 5, borderRadius: 2, backgroundColor: "#436DB5" },
-  streakCard: { marginTop: 12, minHeight: 205, overflow: "hidden", borderRadius: 24, padding: 18 },
+  streakCard: { marginTop: 12, minHeight: 228, overflow: "hidden", borderRadius: 24, padding: 18, borderWidth: 1, borderColor: "rgba(255,255,255,.92)", boxShadow: "0 14px 32px rgba(64,79,124,.09)" },
   streakCopy: { zIndex: 2 },
   streakEyebrow: { color: "#3E64C1", fontSize: 7, fontWeight: "900" },
   streakTitle: { marginTop: 7, color: "#17264D", fontSize: 23, lineHeight: 27, fontWeight: "900" },
   streakText: { marginTop: 6, color: "#687797", fontSize: 8, lineHeight: 12, fontWeight: "700" },
-  challenge: { marginTop: 10, alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 7, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.9)" },
+  challenge: { marginTop: 10, alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 7, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.9)" },
   challengeText: { color: "#5D72D5", fontSize: 7, fontWeight: "900" },
   streakRing: { position: "absolute", right: 22, top: 19, width: 70, height: 70, borderRadius: 35, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.72)", borderWidth: 7, borderColor: "rgba(255,255,255,0.96)" },
   fire: { color: "#FF7D3D", fontSize: 11 },
   zero: { color: "#17264D", fontSize: 15, lineHeight: 16, fontWeight: "900" },
   days: { color: "#8A96B0", fontSize: 6, fontWeight: "800" },
-  miniMascot: { position: "absolute", right: 78, bottom: 28, width: 70, height: 74, alignItems: "center", justifyContent: "center", transform: [{ rotate: "4deg" }] },
-  streakMascotImage: { width: 70, height: 74 },
+  miniMascot: { position: "absolute", right: 38, bottom: 24, width: 148, height: 150, alignItems: "center", justifyContent: "center", transform: [{ rotate: "2deg" }] },
+  streakMascotImage: { width: 148, height: 150 },
   mascotFace: { color: "#28345C", fontSize: 9 },
   mascotBody: { color: "#79A3E9", fontSize: 28 },
   dots: { position: "absolute", left: 16, right: 16, bottom: 12, flexDirection: "row", justifyContent: "space-between" },
