@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { apiRequest } from "@/lib/api-client";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type ActivityCategory = "flight" | "stay" | "food" | "sightseeing" | "transport" | "shopping" | "meeting" | "other";
@@ -49,34 +50,34 @@ export type WorkspaceState = {
   documents: LocalDocument[];
   totalBudget: number;
   dayCountOverride?: number;
+  manualDayCount?: number;
 };
 export type WorkspaceSyncStatus = "local" | "connecting" | "live" | "offline";
 
 const seed: WorkspaceState = {
-  totalBudget: 90000,
+  totalBudget: 0,
   dayCountOverride: 1,
-  activities: [
-    { id: "a1", dayNumber: 1, title: "Departure from Cebu", category: "flight", locationName: "Mactan–Cebu International Airport", detail: "CEB Terminal 2", latitude: 10.3075, longitude: 123.9794, startTime: "08:00", estimatedCost: 0 },
-    { id: "a2", dayNumber: 1, title: "Arrival in Tokyo", category: "transport", locationName: "Narita International Airport", detail: "NRT Terminal 1", latitude: 35.7720, longitude: 140.3929, startTime: "14:30", estimatedCost: 0 },
-    { id: "a3", dayNumber: 1, title: "Check-in at Hotel", category: "stay", locationName: "Shinjuku Granbell Hotel", detail: "Shinjuku, Tokyo", latitude: 35.6952, longitude: 139.7037, startTime: "17:00", estimatedCost: 85 },
-    { id: "a4", dayNumber: 1, title: "Dinner", category: "food", locationName: "Ichiran Ramen Shinjuku", detail: "Shinjuku, Tokyo", latitude: 35.6918, longitude: 139.7046, startTime: "19:30", estimatedCost: 18 },
-  ],
-  expenses: [
-    { id: "e1", title: "Shibuya Dinner", category: "Food & Dining", amount: 3434, date: "Mar 22, 2025", shared: true, paid: true },
-    { id: "e2", title: "Hotel", category: "Accommodation", amount: 30000, date: "Mar 21, 2025" },
-    { id: "e3", title: "Flight Expense", category: "Transportation", amount: 9000, date: "Mar 20, 2025" },
-    { id: "e4", title: "Taxi", category: "Transportation", amount: 234, date: "Mar 20, 2025" },
-  ],
-  checklist: [
-    { id: "c1", title: "Chargers and power bank", category: "Packing", completed: false },
-    { id: "c2", title: "Cash, cards, and travel budget", category: "Money", completed: false },
-    { id: "c3", title: "Weather-ready clothes", category: "Packing", completed: false },
-    { id: "c4", title: "Passport and valid IDs", category: "Documents", completed: true },
-    { id: "c5", title: "Flight and hotel confirmations", category: "Travel", completed: true },
-    { id: "c6", title: "Medicines and basic first aid", category: "Health", completed: true },
-  ],
+  activities: [],
+  expenses: [],
+  checklist: [],
   documents: [],
 };
+
+const LEGACY_DEMO_ACTIVITY_IDS = new Set(["a1","a2","a3","a4"]);
+const LEGACY_DEMO_EXPENSE_IDS = new Set(["e1","e2","e3","e4"]);
+const LEGACY_DEMO_CHECKLIST_IDS = new Set(["c1","c2","c3","c4","c5","c6"]);
+
+function removeLegacyDemoSeed(state: WorkspaceState): WorkspaceState {
+  const activities = state.activities.filter((item) => !LEGACY_DEMO_ACTIVITY_IDS.has(item.id));
+  const expenses = state.expenses.filter((item) => !LEGACY_DEMO_EXPENSE_IDS.has(item.id));
+  const checklist = state.checklist.filter((item) => !LEGACY_DEMO_CHECKLIST_IDS.has(item.id));
+  const onlyLegacy = activities.length === 0 && expenses.length === 0 && checklist.length === 0 && state.documents.length === 0;
+  return { ...state, activities, expenses, checklist, totalBudget: onlyLegacy && state.totalBudget === 90000 ? 0 : state.totalBudget };
+}
+
+function isUuidTripId(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
 
 function key(tripId: string) { return `trava:pixel-workspace:v2:${tripId || "local-japan"}`; }
 function legacyKey(tripId: string) { return `trava:pixel-workspace:v1:${tripId || "local-japan"}`; }
@@ -105,6 +106,8 @@ function sanitizeWorkspace(input: Partial<WorkspaceState> | null | undefined): W
   return {
     totalBudget: Number.isFinite(totalBudget) && totalBudget >= 0 ? totalBudget : fallback.totalBudget,
     dayCountOverride: Number.isFinite(Number(input?.dayCountOverride)) ? Math.max(1, Math.floor(Number(input?.dayCountOverride))) : (fallback.dayCountOverride ?? 1),
+
+    manualDayCount: Number.isFinite(Number(input?.manualDayCount)) ? Math.max(1, Math.floor(Number(input?.manualDayCount))) : undefined,
     activities: ensureUniqueIds(Array.isArray(input?.activities) ? input.activities : fallback.activities, "a"),
     expenses: ensureUniqueIds(Array.isArray(input?.expenses) ? input.expenses : fallback.expenses, "e"),
     checklist: ensureUniqueIds(Array.isArray(input?.checklist) ? input.checklist : fallback.checklist, "c"),
@@ -125,7 +128,8 @@ export function useLocalTripWorkspace(tripId: string) {
   const [onlineCount, setOnlineCount] = useState(1);
   const stateRef = useRef(state);
   const revisionRef = useRef(0);
-  const senderRef = useRef<string>(`anon-${Math.random().toString(36).slice(2)}`);
+  const senderInstanceId = useId();
+  const senderRef = useRef<string>(`anon-${senderInstanceId.replace(/:/g, "")}`);
   const channelRef = useRef<ReturnType<ReturnType<typeof getSupabaseClient>["channel"]> | null>(null);
   const applyingRemoteRef = useRef(false);
 
@@ -133,6 +137,7 @@ export function useLocalTripWorkspace(tripId: string) {
 
   useEffect(() => {
     let alive = true;
+// eslint-disable-next-line react-hooks/set-state-in-effect -- trip changes intentionally reset readiness before asynchronous workspace hydration
     setReady(false);
     (async () => {
       try {
@@ -140,8 +145,24 @@ export function useLocalTripWorkspace(tripId: string) {
         let raw = await AsyncStorage.getItem(storageKey);
         if (!raw) raw = await AsyncStorage.getItem(legacyKey(tripId));
         const parsed = raw ? (JSON.parse(raw) as Partial<WorkspaceState>) : cloneSeed();
-        const repaired = sanitizeWorkspace(parsed);
+        let repaired = removeLegacyDemoSeed(sanitizeWorkspace(parsed));
         revisionRef.current = Date.now();
+
+        if (isUuidTripId(tripId)) {
+          try {
+            const cloud = await apiRequest<{ data: { workspace?: Partial<WorkspaceState>; updatedAt?: string } }>(
+              `/api/trips/${tripId}/workspace-state`,
+            );
+            if (cloud.data.workspace && Object.keys(cloud.data.workspace).length) {
+              repaired = removeLegacyDemoSeed(sanitizeWorkspace(cloud.data.workspace));
+              const cloudRevision = Date.parse(String(cloud.data.updatedAt ?? ""));
+              if (Number.isFinite(cloudRevision)) revisionRef.current = cloudRevision;
+            }
+          } catch {
+            // Offline/API unavailable: the locally persisted copy remains authoritative until reconnect.
+          }
+        }
+
         if (alive) setState(repaired);
         await AsyncStorage.setItem(storageKey, JSON.stringify(repaired));
       } catch {
@@ -160,7 +181,7 @@ export function useLocalTripWorkspace(tripId: string) {
       try {
         const supabase = getSupabaseClient();
         const { data } = await supabase.auth.getUser();
-        if (disposed || !data.user) { setSyncStatus("local"); return; }
+        if (disposed || !data.user || !isUuidTripId(tripId)) { setSyncStatus("local"); return; }
         senderRef.current = data.user.id;
         setSyncStatus("connecting");
         channel = supabase.channel(`trava-trip-live:${tripId}`, { config: { broadcast: { self: false }, presence: { key: data.user.id } } });
@@ -222,13 +243,33 @@ export function useLocalTripWorkspace(tripId: string) {
       if (!applyingRemoteRef.current && channelRef.current) {
         void channelRef.current.send({ type: "broadcast", event: "workspace-state", payload: { sender: senderRef.current, revision, state: cloudSafe(next) } });
       }
+      if (!applyingRemoteRef.current && isUuidTripId(tripId)) {
+        void apiRequest(`/api/trips/${tripId}/workspace-state`, {
+          method: "PATCH",
+          body: JSON.stringify({ workspace: cloudSafe(next) }),
+        }).catch(() => undefined);
+      }
       return next;
     });
   }, [tripId]);
 
   const api = useMemo(() => ({
     setTotalBudget(value: number) { commit((s) => ({ ...s, totalBudget: Math.max(0, value) })); },
-    setDayCount(value: number) { commit((s) => ({ ...s, dayCountOverride: Math.max(1, Math.floor(value)) })); },
+    setDayCount(value: number) {
+      const next = Math.max(1, Math.floor(value));
+      commit((s) => ({ ...s, dayCountOverride: next, manualDayCount: next }));
+    },
+    deleteDay(dayNumber: number) {
+      commit((s) => {
+        const derivedCount = Math.max(s.dayCountOverride ?? 1, ...s.activities.map((item) => item.dayNumber), 1);
+        const currentCount = Math.max(1, s.manualDayCount ?? derivedCount);
+        const nextCount = Math.max(1, currentCount - 1);
+        const activities = s.activities
+          .filter((item) => item.dayNumber !== dayNumber)
+          .map((item) => item.dayNumber > dayNumber ? { ...item, dayNumber: item.dayNumber - 1 } : item);
+        return { ...s, activities, dayCountOverride: nextCount, manualDayCount: nextCount };
+      });
+    },
     addExpense(expense: Omit<LocalExpense, "id">) { commit((s) => ({ ...s, expenses: [{ ...expense, id: makeId("e") }, ...s.expenses] })); },
     updateExpense(id: string, patch: Partial<LocalExpense>) { commit((s) => ({ ...s, expenses: s.expenses.map((e) => e.id === id ? { ...e, ...patch } : e) })); },
     deleteExpense(id: string) { commit((s) => ({ ...s, expenses: s.expenses.filter((e) => e.id !== id) })); },
