@@ -111,6 +111,7 @@ export function ChatScreen() {
       packageMeta,
     });
     const next = appendUnique(messages, packageMessage);
+// eslint-disable-next-line react-hooks/set-state-in-effect -- package share metadata is converted into the room message exactly once when navigation state arrives
     setMessages(next);
     void writeRoomMessages(roomId, next);
     void upsertRoomIndex({ roomId, agencyId, agencyName, travelerId, travelerName, lastMessage: `Shared ${packageMeta.packageTitle}`, updatedAt: packageMessage.createdAt, packageMeta });
