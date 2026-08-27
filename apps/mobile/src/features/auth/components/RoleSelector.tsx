@@ -72,10 +72,6 @@ const styles = StyleSheet.create({
   tab: { flex: 1, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 14 },
   selectedTab: {
     backgroundColor: "#FFFFFF",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
     elevation: 2,
   },
   tabLabel: { color: "#64748B", fontSize: 13, fontWeight: "800" },
