@@ -96,6 +96,7 @@ async function resolveTravelerExact(identityRaw: unknown) {
   // Ambiguous full names remain private rather than exposing a list of accounts.
   if (exact.length !== 1) return null;
   const person = exact[0];
+  if (!person) return null;
   return {
     email: text(person.email) ?? "",
     fullName: text(person.full_name) ?? text(person.email) ?? "TRAVA traveler",
@@ -932,6 +933,62 @@ tripsRouter.patch("/:tripId/flight", async (request: Request, response: Response
     const { data, error } = await getSupabaseAdmin().from("trips").update({ flight_number: input.flightNumber, flight_date: input.flightDate ?? null }).eq("trip_id", tripId).select("flight_number,flight_date").single();
     if (error) throw error;
     response.json({ data: { flightNumber: data.flight_number, flightDate: dateText(data.flight_date) } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
+// TRAVA_PERSISTED_WORKSPACE_STATE_V1
+tripsRouter.get("/:tripId/workspace-state", async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    const userId = requireRequestUserId(request.authUser?.id);
+    const tripId = parse(uuidSchema, request.params.tripId);
+    const access = await loadTripAccess(userId, tripId);
+    response.json({
+      data: {
+        workspace: access.trip.trava_workspace && typeof access.trip.trava_workspace === "object"
+          ? access.trip.trava_workspace
+          : {},
+        updatedAt: String(access.trip.trava_workspace_updated_at ?? access.trip.updated_at ?? new Date(0).toISOString()),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+tripsRouter.patch("/:tripId/workspace-state", async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    const userId = requireRequestUserId(request.authUser?.id);
+    const tripId = parse(uuidSchema, request.params.tripId);
+    await loadTripAccess(userId, tripId);
+
+    const workspace = request.body?.workspace;
+    if (!workspace || typeof workspace !== "object" || Array.isArray(workspace)) {
+      throw new HttpError(400, "A workspace object is required.", "INVALID_WORKSPACE");
+    }
+    const encoded = JSON.stringify(workspace);
+    if (encoded.length > 1_500_000) {
+      throw new HttpError(413, "Trip workspace is too large to sync.", "WORKSPACE_TOO_LARGE");
+    }
+
+    const updatedAt = new Date().toISOString();
+    const admin = getSupabaseAdmin();
+    const { data, error } = await admin
+      .from("trips")
+      .update({ trava_workspace: workspace, trava_workspace_updated_at: updatedAt })
+      .eq("trip_id", tripId)
+      .select("trava_workspace,trava_workspace_updated_at")
+      .single();
+    if (error) throw error;
+
+    response.json({
+      data: {
+        workspace: data?.trava_workspace ?? workspace,
+        updatedAt: String(data?.trava_workspace_updated_at ?? updatedAt),
+      },
+    });
   } catch (error) {
     next(error);
   }
