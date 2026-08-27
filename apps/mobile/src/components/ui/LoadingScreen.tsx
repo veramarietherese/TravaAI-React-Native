@@ -1,14 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useMemo, useRef } from "react";
-import {
-  Animated,
-  Easing,
-  Image,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, Image, StyleSheet, Text, View, useWindowDimensions, Platform } from "react-native";
 
 const ASSETS = {
   airplane: require("../../../assets/images/trava-loader/airplane.png"),
@@ -51,19 +43,19 @@ function startFloat(value: Animated.Value, distance: number, duration: number, d
         toValue: -distance,
         duration,
         easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
       Animated.timing(value, {
         toValue: distance,
         duration: duration * 2,
         easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
       Animated.timing(value, {
         toValue: 0,
         duration,
         easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
     ]),
   );
@@ -81,9 +73,7 @@ function Asset({
   float: Animated.Value;
 }) {
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
+    <Animated.View style={[{ pointerEvents: "none" }, 
         style,
         {
           opacity: enter.opacity,
@@ -100,8 +90,8 @@ function Asset({
 }
 
 function Ripple({ delay, size }: { delay: number; size: number }) {
-  const scale = useRef(new Animated.Value(0.82)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useState(() => new Animated.Value(0.82))[0];
+  const opacity = useState(() => new Animated.Value(0))[0];
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -112,14 +102,14 @@ function Ripple({ delay, size }: { delay: number; size: number }) {
             toValue: 1.28,
             duration: 2200,
             easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== "web",
           }),
           Animated.sequence([
-            Animated.timing(opacity, { toValue: 0.48, duration: 240, useNativeDriver: true }),
-            Animated.timing(opacity, { toValue: 0, duration: 1960, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 0.48, duration: 240, useNativeDriver: Platform.OS !== "web" }),
+            Animated.timing(opacity, { toValue: 0, duration: 1960, useNativeDriver: Platform.OS !== "web" }),
           ]),
         ]),
-        Animated.timing(scale, { toValue: 0.82, duration: 0, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 0.82, duration: 0, useNativeDriver: Platform.OS !== "web" }),
       ]),
     );
     loop.start();
@@ -127,9 +117,7 @@ function Ripple({ delay, size }: { delay: number; size: number }) {
   }, [delay, opacity, scale]);
 
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
+    <Animated.View style={[{ pointerEvents: "none" }, 
         styles.ripple,
         { width: size, height: size, borderRadius: size / 2, opacity, transform: [{ scale }] },
       ]}
@@ -175,23 +163,23 @@ export function LoadingScreen({ message = "Loading your next adventure..." }: Lo
   const ticket = useMemo(() => makeEnterAnim(), []);
   const avatarMale = useMemo(() => makeEnterAnim(), []);
 
-  const centerFloat = useRef(new Animated.Value(0)).current;
-  const airplaneFloat = useRef(new Animated.Value(0)).current;
-  const pinFloat = useRef(new Animated.Value(0)).current;
-  const calendarFloat = useRef(new Animated.Value(0)).current;
-  const femaleFloat = useRef(new Animated.Value(0)).current;
-  const suitcaseFloat = useRef(new Animated.Value(0)).current;
-  const glassesFloat = useRef(new Animated.Value(0)).current;
-  const globeFloat = useRef(new Animated.Value(0)).current;
-  const ticketFloat = useRef(new Animated.Value(0)).current;
-  const maleFloat = useRef(new Animated.Value(0)).current;
+  const centerFloat = useState(() => new Animated.Value(0))[0];
+  const airplaneFloat = useState(() => new Animated.Value(0))[0];
+  const pinFloat = useState(() => new Animated.Value(0))[0];
+  const calendarFloat = useState(() => new Animated.Value(0))[0];
+  const femaleFloat = useState(() => new Animated.Value(0))[0];
+  const suitcaseFloat = useState(() => new Animated.Value(0))[0];
+  const glassesFloat = useState(() => new Animated.Value(0))[0];
+  const globeFloat = useState(() => new Animated.Value(0))[0];
+  const ticketFloat = useState(() => new Animated.Value(0))[0];
+  const maleFloat = useState(() => new Animated.Value(0))[0];
 
-  const copyOpacity = useRef(new Animated.Value(0)).current;
-  const copyY = useRef(new Animated.Value(20)).current;
-  const progress = useRef(new Animated.Value(0)).current;
+  const copyOpacity = useState(() => new Animated.Value(0))[0];
+  const copyY = useState(() => new Animated.Value(20))[0];
+  const progress = useState(() => new Animated.Value(0))[0];
 
   useEffect(() => {
-    const entries: Array<[EnterAnim, number]> = [
+    const entries: [EnterAnim, number][] = [
       [center, 0],
       [airplane, 180],
       [pin, 300],
@@ -213,19 +201,19 @@ export function LoadingScreen({ message = "Loading your next adventure..." }: Lo
               toValue: 1,
               duration: 320,
               easing: Easing.out(Easing.quad),
-              useNativeDriver: true,
+              useNativeDriver: Platform.OS !== "web",
             }),
             Animated.spring(anim.scale, {
               toValue: 1,
               friction: 5.8,
               tension: 82,
-              useNativeDriver: true,
+              useNativeDriver: Platform.OS !== "web",
             }),
             Animated.spring(anim.y, {
               toValue: 0,
               friction: 7,
               tension: 70,
-              useNativeDriver: true,
+              useNativeDriver: Platform.OS !== "web",
             }),
           ]),
         ]),
@@ -239,13 +227,13 @@ export function LoadingScreen({ message = "Loading your next adventure..." }: Lo
           toValue: 1,
           duration: 520,
           easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== "web",
         }),
         Animated.timing(copyY, {
           toValue: 0,
           duration: 520,
           easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== "web",
         }),
       ]),
     ]);
@@ -319,10 +307,10 @@ export function LoadingScreen({ message = "Loading your next adventure..." }: Lo
         locations={[0, 0.28, 0.66, 1]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
-      <View pointerEvents="none" style={styles.ambientPink} />
-      <View pointerEvents="none" style={styles.ambientBlue} />
+      <View style={[styles.ambientPink, { pointerEvents: "none" }]} />
+      <View style={[styles.ambientBlue, { pointerEvents: "none" }]} />
 
       <View style={styles.shell}>
         <View style={[styles.stage, { width: stageWidth, height: stageHeight }]}>
@@ -381,7 +369,7 @@ export function LoadingScreen({ message = "Loading your next adventure..." }: Lo
                   colors={["#4FAEFF", "#986BFF", "#EB6EC4", "#FF9B71"]}
                   start={{ x: 0, y: 0.5 }}
                   end={{ x: 1, y: 0.5 }}
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                 />
               </Animated.View>
             </View>
@@ -456,11 +444,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 9999,
     backgroundColor: "rgba(255,255,255,0.46)",
-    shadowColor: "#E27AF2",
-    shadowOpacity: 0.22,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 0 },
-  },
+    },
   assetImage: { width: "100%", height: "100%" },
   centerStar: { position: "absolute", left: "40%", top: "39%", width: "20%", height: "22%", zIndex: 10 },
   airplane: { position: "absolute", left: "6%", top: "9%", width: "34%", height: "29%", zIndex: 8 },
@@ -534,11 +518,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 31,
     backgroundColor: "#0C0E1A",
-    shadowColor: "#5C4A93",
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-  },
+    },
   progressTrack: {
     flex: 1,
     height: 14,
@@ -559,7 +539,5 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     textAlign: "center",
     fontWeight: "900",
-    textShadowColor: "rgba(241,127,193,0.35)",
-    textShadowRadius: 10,
-  },
+    },
 });
