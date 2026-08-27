@@ -61,13 +61,13 @@ export function AuthShell({
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: Platform.OS !== "web" }),
       Animated.spring(translateY, {
         toValue: 0,
         damping: 20,
         stiffness: 220,
         mass: 0.8,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
     ]).start();
   }, [opacity, translateY]);
@@ -106,9 +106,7 @@ export function AuthShell({
           style={StyleSheet.absoluteFill}
         />
 
-        <View
-          pointerEvents="box-none"
-          style={[
+        <View style={[{ pointerEvents: "box-none" }, 
             styles.topBar,
             {
               paddingTop: Math.max(insets.top, 8),
@@ -285,10 +283,6 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.88)",
-    shadowColor: "#64748B",
-    shadowOpacity: 0.08,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 10 },
     elevation: 3,
   },
   narrowPanel: { borderRadius: 22 },
