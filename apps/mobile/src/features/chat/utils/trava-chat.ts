@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getSupabaseClient } from "@/lib/supabase";
 
 export type TravaChatMessageKind = "text" | "package" | "system";
+export type TravaChatContextType = "agency" | "booking" | "package" | "itinerary";
 
 export interface TravaChatPackageMeta {
   packageId: string;
@@ -32,9 +33,16 @@ export interface TravaChatRoomSummary {
   agencyName: string;
   travelerId?: string;
   travelerName?: string;
+  contactName?: string;
   lastMessage: string;
   updatedAt: string;
   packageMeta?: TravaChatPackageMeta;
+  contextType?: TravaChatContextType;
+  contextLabel?: string;
+  bookingStatus?: string;
+  isPinned?: boolean;
+  unreadCount?: number;
+  lastReadAt?: string;
 }
 
 const ROOMS_KEY = "trava-chat-v4:rooms";
@@ -63,10 +71,73 @@ export async function readRoomIndex(): Promise<TravaChatRoomSummary[]> {
   return rooms.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+/**
+ * Upserts while preserving inbox-only metadata (read state, pinning and context)
+ * that older ChatScreen callers do not know about yet.
+ */
 export async function upsertRoomIndex(room: TravaChatRoomSummary): Promise<void> {
   const rooms = await readRoomIndex();
-  const next = [room, ...rooms.filter((item) => item.roomId !== room.roomId)].slice(0, 100);
+  const previous = rooms.find((item) => item.roomId === room.roomId);
+  const merged: TravaChatRoomSummary = {
+    ...previous,
+    ...room,
+    contextType:
+      room.contextType ??
+      previous?.contextType ??
+      (room.packageMeta || previous?.packageMeta ? "package" : "agency"),
+  };
+  const next = [merged, ...rooms.filter((item) => item.roomId !== room.roomId)].slice(0, 100);
   await AsyncStorage.setItem(ROOMS_KEY, JSON.stringify(next));
+}
+
+export async function markRoomRead(roomId: string): Promise<void> {
+  const rooms = await readRoomIndex();
+  const now = new Date().toISOString();
+  const next = rooms.map((room) =>
+    room.roomId === roomId
+      ? { ...room, unreadCount: 0, lastReadAt: now }
+      : room,
+  );
+  await AsyncStorage.setItem(ROOMS_KEY, JSON.stringify(next));
+}
+
+export async function markRoomUnread(roomId: string): Promise<void> {
+  const rooms = await readRoomIndex();
+  const next = rooms.map((room) =>
+    room.roomId === roomId
+      ? { ...room, unreadCount: Math.max(1, room.unreadCount ?? 0) }
+      : room,
+  );
+  await AsyncStorage.setItem(ROOMS_KEY, JSON.stringify(next));
+}
+
+export async function toggleRoomPinned(roomId: string): Promise<void> {
+  const rooms = await readRoomIndex();
+  const next = rooms.map((room) =>
+    room.roomId === roomId ? { ...room, isPinned: !room.isPinned } : room,
+  );
+  await AsyncStorage.setItem(ROOMS_KEY, JSON.stringify(next));
+}
+
+export function roomUnreadCount(room: TravaChatRoomSummary): number {
+  return Math.max(0, Math.floor(room.unreadCount ?? 0));
+}
+
+export function roomContextLabel(room: TravaChatRoomSummary): string {
+  if (room.contextLabel?.trim()) return room.contextLabel.trim();
+  if (room.contextType === "booking" && room.packageMeta) {
+    return `Booking • ${room.packageMeta.packageTitle}`;
+  }
+  if (room.contextType === "itinerary" && room.packageMeta) {
+    return `Shared itinerary • ${room.packageMeta.packageTitle}`;
+  }
+  if (room.packageMeta) return `Shared package • ${room.packageMeta.packageTitle}`;
+  return "Agency conversation";
+}
+
+export async function countUnreadRooms(): Promise<number> {
+  const rooms = await readRoomIndex();
+  return rooms.reduce((sum, room) => sum + roomUnreadCount(room), 0);
 }
 
 export function makeMessage(input: Omit<TravaChatMessage, "id" | "createdAt">): TravaChatMessage {
