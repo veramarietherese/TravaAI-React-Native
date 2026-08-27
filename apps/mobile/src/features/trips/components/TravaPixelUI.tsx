@@ -92,8 +92,8 @@ export function Soft3DIcon({
   foreground?: string;
   tilt?: number;
 }) {
-  return <View style={[styles.iconShadow, { width: size + 8, height: size + 8 }]}> 
-    <View style={[styles.iconTilt, { transform: [{ rotate: `${tilt}deg` }] }]}> 
+  return <View style={[styles.iconShadow, { width: size, height: size }]}> 
+    <View style={styles.iconTilt}> 
       <View style={[styles.iconTile, { width: size, height: size, borderRadius: size * .28, backgroundColor: colors[0] }]}> 
         <View style={[styles.iconTint, { backgroundColor: colors[1] }]} />
         <View style={styles.iconHighlight}/>
@@ -128,11 +128,11 @@ const styles = StyleSheet.create({
   activeTab: { backgroundColor: "#ECEDEF", borderRadius: 23 },
   tabText: { color: "#30343A", fontSize: 13, fontWeight: "700" },
   activeTabText: { color: "#111318", fontSize: 13, fontWeight: "900" },
-  iconShadow: { alignItems: "center", justifyContent: "center" },
-  iconTilt: { boxShadow: "0 11px 20px rgba(38,39,43,.12)" },
-  iconTile: { overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,.90)" },
-  iconTint: { ...StyleSheet.absoluteFillObject, opacity: .62 },
-  iconHighlight: { position: "absolute", left: 9, right: 9, top: 7, height: 17, borderRadius: 13, backgroundColor: "rgba(255,255,255,.32)" },
+  iconShadow: { alignItems: "center", justifyContent: "center", backgroundColor: "transparent" },
+  iconTilt: { backgroundColor: "transparent", boxShadow: "0 10px 22px rgba(76,70,145,.18)" },
+  iconTile: { overflow: "hidden", alignItems: "center", justifyContent: "center", borderWidth: 0, borderColor: "transparent", backgroundColor: "transparent" },
+  iconTint: { ...StyleSheet.absoluteFill, opacity: .62 },
+  iconHighlight: { position: "absolute", left: 8, right: 8, top: 7, height: 16, borderRadius: 13, backgroundColor: "rgba(255,255,255,.22)" },
   iconGlyph: { fontWeight: "900" },
   sectionHeading: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 },
   sectionTitle: { color: PX.ink, fontSize: 20, fontWeight: "900" },
