@@ -33,7 +33,9 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   let lastNetworkError: unknown = null;
   for (const base of bases) {
     try {
-      const response = await fetch(`${base}${path}`, { ...options, headers });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12_000);
+      const response = await fetch(`${base}${path}`, { ...options, headers, signal: controller.signal }).finally(() => clearTimeout(timeout));
       const body = (await response.json().catch(() => null)) as T | { error?: { message?: string } } | null;
       if (!response.ok) {
         const errorBody = body as { error?: { message?: string } } | null;
