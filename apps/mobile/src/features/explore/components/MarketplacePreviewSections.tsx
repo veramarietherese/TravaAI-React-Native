@@ -1,0 +1,21 @@
+import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { type Href, useRouter } from "expo-router";
+
+import { TOUR_PACKAGE_PREVIEWS } from "../preview/tour-packages.preview";
+import { TRAVEL_AGENCY_PREVIEWS } from "../preview/travel-agencies.preview";
+
+export function MarketplacePreviewSections() {
+  const router=useRouter();
+  return <>
+    <Section title="Tour Packages" sub="Marketplace preview · curated packages are coming to Trava." onViewAll={()=>router.push("/explore/all?section=packages" as Href)}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.track}>{TOUR_PACKAGE_PREVIEWS.map((item)=><View key={item.id} style={styles.package}><Image source={{uri:item.imageUrl}} contentFit="cover" style={styles.packageImage}/><View style={styles.copy}><Text style={styles.previewBadge}>MARKETPLACE PREVIEW</Text><Text numberOfLines={1} style={styles.title}>{item.title}</Text><Text style={styles.sub}>{item.destination} · {item.duration}</Text><Text style={styles.price}>{item.samplePrice}</Text><Text numberOfLines={1} style={styles.inclusions}>{item.inclusions.join(" · ")}</Text><View style={styles.coming}><Text style={styles.comingText}>Coming soon</Text></View></View></View>)}</ScrollView>
+    </Section>
+    <Section title="Travel Agencies" sub="Marketplace preview · travel partners will appear here as they join Trava." onViewAll={()=>router.push("/explore/all?section=agencies" as Href)}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.track}>{TRAVEL_AGENCY_PREVIEWS.map((item)=><View key={item.id} style={styles.agency}><Image source={{uri:item.imageUrl}} contentFit="cover" style={styles.agencyImage}/><View style={styles.copy}><Text style={styles.previewBadge}>PROFILE PREVIEW</Text><Text style={styles.title}>{item.name}</Text><Text style={styles.sub}>{item.location}</Text><Text numberOfLines={2} style={styles.description}>{item.description}</Text><Text numberOfLines={1} style={styles.inclusions}>{item.specialties.join(" · ")}</Text><View style={styles.coming}><Text style={styles.comingText}>Marketplace preview</Text></View></View></View>)}</ScrollView>
+    </Section>
+  </>;
+}
+function Section({title,sub,onViewAll,children}:{title:string;sub:string;onViewAll():void;children:React.ReactNode}){return <View style={styles.section}><View style={styles.head}><View style={{flex:1}}><Text style={styles.sectionTitle}>{title}</Text><Text style={styles.sectionSub}>{sub}</Text></View><Pressable onPress={onViewAll} style={styles.viewAll}><Text style={styles.viewAllText}>View all</Text><Ionicons name="chevron-forward" size={12} color="#755DD7"/></Pressable></View>{children}</View>;}
+const styles=StyleSheet.create({section:{marginTop:28},head:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:10},sectionTitle:{color:"#232C46",fontSize:13,fontWeight:"900"},sectionSub:{marginTop:2,color:"#8A93A4",fontSize:8.2,fontWeight:"600"},viewAll:{minHeight:30,flexDirection:"row",alignItems:"center",gap:2,paddingHorizontal:8,borderRadius:13,backgroundColor:"#F4F0FF"},viewAllText:{color:"#755DD7",fontSize:7.8,fontWeight:"900"},track:{gap:10,paddingBottom:4},package:{width:250,overflow:"hidden",borderRadius:20,backgroundColor:"#fff",borderWidth:1,borderColor:"#E6E8EE"},packageImage:{height:120,backgroundColor:"#EFF1F5"},agency:{width:260,overflow:"hidden",borderRadius:20,backgroundColor:"#fff",borderWidth:1,borderColor:"#E6E8EE"},agencyImage:{height:110,backgroundColor:"#EFF1F5"},copy:{padding:11},previewBadge:{color:"#8267E0",fontSize:6.8,fontWeight:"900",letterSpacing:.65},title:{marginTop:4,color:"#273149",fontSize:10.5,fontWeight:"900"},sub:{marginTop:3,color:"#8992A3",fontSize:7.8,fontWeight:"700"},price:{marginTop:6,color:"#35405A",fontSize:9.5,fontWeight:"900"},inclusions:{marginTop:5,color:"#858FA1",fontSize:7.5,fontWeight:"600"},description:{marginTop:6,minHeight:28,color:"#7D879A",fontSize:7.8,lineHeight:12,fontWeight:"600"},coming:{marginTop:10,minHeight:33,alignItems:"center",justifyContent:"center",borderRadius:13,backgroundColor:"#F4F0FF"},comingText:{color:"#7057D2",fontSize:8.2,fontWeight:"900"}});
