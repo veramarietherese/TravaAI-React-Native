@@ -527,6 +527,74 @@ tripsRouter.get("/:tripId/members", async (request: Request, response: Response,
 
 
 
+// Owner-only traveler directory search used by the collaboration picker.
+// It returns a small, minimal result set and excludes users who already belong to the trip.
+tripsRouter.get("/:tripId/members/search", async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    const userId = requireRequestUserId(request.authUser?.id);
+    const tripId = parse(uuidSchema, request.params.tripId);
+    await requireTripOwner(userId, tripId);
+
+    const query = typeof request.query.q === "string" ? request.query.q.trim() : "";
+    if (query.length < 2) {
+      response.json({ data: [] });
+      return;
+    }
+    if (query.length > 80) {
+      throw new HttpError(400, "Search text is too long.", "DIRECTORY_QUERY_TOO_LONG");
+    }
+
+    const admin = getSupabaseAdmin();
+    const { data: memberships, error: membershipError } = await admin
+      .from("trip_members")
+      .select("user_id")
+      .eq("trip_id", tripId);
+    if (membershipError) throw membershipError;
+
+    const excluded = new Set<string>([
+      userId,
+      ...(memberships ?? []).map((row) => String(row.user_id)),
+    ]);
+    const pattern = `%${query}%`;
+
+    const [nameResult, emailResult] = await Promise.all([
+      admin
+        .from("profiles")
+        .select("id,email,full_name,avatar_url,role")
+        .eq("role", "traveler")
+        .ilike("full_name", pattern)
+        .limit(8),
+      admin
+        .from("profiles")
+        .select("id,email,full_name,avatar_url,role")
+        .eq("role", "traveler")
+        .ilike("email", pattern)
+        .limit(8),
+    ]);
+    if (nameResult.error) throw nameResult.error;
+    if (emailResult.error) throw emailResult.error;
+
+    const merged = new Map<string, Row>();
+    for (const person of [...(nameResult.data ?? []), ...(emailResult.data ?? [])]) {
+      const id = String(person.id ?? "");
+      if (!id || excluded.has(id) || merged.has(id)) continue;
+      merged.set(id, person as Row);
+      if (merged.size >= 8) break;
+    }
+
+    response.json({
+      data: [...merged.values()].map((person) => ({
+        id: String(person.id),
+        email: text(person.email) ?? "",
+        fullName: text(person.full_name) ?? text(person.email) ?? "TRAVA traveler",
+        avatarUrl: text(person.avatar_url),
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Privacy-first exact collaborator resolver. No prefix suggestions are exposed.
 tripsRouter.get("/:tripId/members/resolve", async (request: Request, response: Response, next: NextFunction) => {
   try {
