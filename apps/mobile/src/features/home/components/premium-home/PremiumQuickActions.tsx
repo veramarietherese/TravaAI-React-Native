@@ -25,8 +25,18 @@ export function PremiumQuickActions({ onPress }: { onPress(action: PremiumQuickA
             onPress={() => onPress(action.key)}
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}
           >
-            <Image source={action.image} contentFit="contain" style={styles.icon} />
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.label}>{action.label}</Text>
+            <View pointerEvents="none" style={styles.iconStage}>
+              <Image
+                source={action.image}
+                contentFit="contain"
+                contentPosition="center"
+                cachePolicy="memory-disk"
+                style={styles.icon}
+              />
+            </View>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={styles.label}>
+              {action.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -39,8 +49,40 @@ const styles = StyleSheet.create({
   title: { color: "#121A38", fontSize: 17, lineHeight: 21, fontWeight: "900", letterSpacing: -0.25 },
   subtitle: { marginTop: 2, color: "#6C7690", fontSize: 10.5, lineHeight: 14, fontWeight: "600" },
   row: { marginTop: 10, flexDirection: "row", gap: 7 },
-  card: { flex: 1, minWidth: 0, minHeight: 115, paddingHorizontal: 5, paddingTop: 10, paddingBottom: 10, alignItems: "center", justifyContent: "space-between", borderRadius: 20, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#EFF0F5", shadowColor: "#8A88AA", shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 2 },
-  icon: { width: 62, height: 62 },
-  label: { color: "#131B37", fontSize: 9.8, lineHeight: 13, fontWeight: "800", textAlign: "center", width: "100%" },
+  card: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 115,
+    paddingHorizontal: 5,
+    paddingTop: 9,
+    paddingBottom: 10,
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#EFF0F5",
+    shadowColor: "#8A88AA",
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 2,
+  },
+  iconStage: {
+    width: 68,
+    height: 68,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
+  },
+  icon: { width: "100%", height: "100%" },
+  label: {
+    color: "#131B37",
+    fontSize: 9.8,
+    lineHeight: 13,
+    fontWeight: "800",
+    textAlign: "center",
+    width: "100%",
+  },
   pressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
 });
