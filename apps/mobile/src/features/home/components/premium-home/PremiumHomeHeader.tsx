@@ -57,9 +57,9 @@ export function PremiumHomeHeader({
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={onProfilePress} style={({ pressed }) => [styles.avatarButton, pressed && styles.pressed]}>
             {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+              <Image source={{ uri: avatarUrl }} contentFit="cover" style={StyleSheet.absoluteFill} />
             ) : (
-              <LinearGradient colors={["#B8D3FF", "#F5B6D7"]} style={StyleSheet.absoluteFillObject} />
+              <LinearGradient colors={["#B8D3FF", "#F5B6D7"]} style={StyleSheet.absoluteFill} />
             )}
             {!avatarUrl ? <Text style={styles.initials}>{initials}</Text> : null}
           </Pressable>
