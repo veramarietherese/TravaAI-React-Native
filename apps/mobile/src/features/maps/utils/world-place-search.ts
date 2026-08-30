@@ -1,146 +1,134 @@
 import { apiRequest } from "@/lib/api-client";
+import type { Coordinates, DiscoverPlace, MapRoute, PlaceImage, TravelMode } from "@/features/explore/components/DiscoverMap.types";
 
-export type WorldPlaceResult = {
+export type PlaceBias = Coordinates | null | undefined;
+
+export interface WorldPlaceResult {
   id: string;
+  provider?: "osm";
+  providerId?: string;
+  osmType?: "node" | "way" | "relation" | null;
+  osmId?: number | null;
   name: string;
   displayName: string;
-  city: string | null;
-  country: string | null;
+  address?: string | null;
+  city?: string | null;
+  country?: string | null;
   latitude: number;
   longitude: number;
   category?: string | null;
+  openingHours?: string | null;
+  website?: string | null;
+  phone?: string | null;
+  sourceUrl?: string | null;
+  imageRefs?: DiscoverPlace["imageRefs"];
   imageUrl?: string | null;
-};
-
-export type PlaceBias = { latitude: number; longitude: number } | null | undefined;
-
-function buildQuery(path: string, params: Record<string, string | number | null | undefined>) {
-  const query = Object.entries(params)
-    .filter(([, value]) => value !== null && value !== undefined && String(value).length > 0)
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-    .join("&");
-  return query ? `${path}?${query}` : path;
 }
 
-export async function searchWorldPlaces(query: string, bias?: PlaceBias, limit = 12): Promise<WorldPlaceResult[]> {
+export async function searchWorldPlaces(
+  query: string,
+  origin?: PlaceBias,
+  limit = 10,
+  signal?: AbortSignal,
+): Promise<WorldPlaceResult[]> {
   const text = query.trim();
   if (text.length < 2) return [];
-
-  const categorySearch = parseCategorySearch(text);
-  if (categorySearch) {
-    const anchors = await photonSearch(categorySearch.location, bias, 1);
-    const anchor = anchors[0];
-    if (anchor) {
-      const nearby = await searchNearbyPlaces(categorySearch.category, anchor.latitude, anchor.longitude, limit);
-      if (nearby.length) return nearby;
-    }
+  const params = new URLSearchParams({ q: text, limit: String(Math.max(1, Math.min(25, limit))) });
+  if (origin) {
+    params.set("lat", String(origin.latitude));
+    params.set("lon", String(origin.longitude));
   }
-
-  try {
-    const result = await apiRequest<{ data: WorldPlaceResult[] }>(buildQuery("/api/places/search", {
-      q: text,
-      lat: bias?.latitude,
-      lon: bias?.longitude,
-      limit,
-    }));
-    const data = dedupe(result.data ?? []).slice(0, limit);
-    if (data.length) return data;
-  } catch {
-    // Public no-key API may be unavailable locally; Photon fallback below keeps search working.
-  }
-  return photonSearch(text, bias, limit);
+  const result = await apiRequest<{ data: WorldPlaceResult[] }>(`/api/places/search?${params.toString()}`, { signal });
+  return result.data;
 }
 
-export async function searchNearbyPlaces(category: string, latitude: number, longitude: number, limit = 18): Promise<WorldPlaceResult[]> {
-  try {
-    const result = await apiRequest<{ data: WorldPlaceResult[] }>(buildQuery("/api/places/nearby", { category, lat: latitude, lon: longitude, limit }));
-    const data = dedupe(result.data ?? []).slice(0, limit);
-    if (data.length) return data;
-  } catch {
-    // Deliberately do not hit Overpass from the browser. It caused 429/refused loops.
-  }
-  return photonNearby(category, latitude, longitude, limit);
-}
-
-async function photonNearby(category: string, latitude: number, longitude: number, limit: number) {
-  const aliases: Record<string, string[]> = {
-    cafes: ["cafe", "coffee"],
-    food: ["restaurant", "food"],
-    shopping: ["shopping mall", "shop"],
-    hiking: ["trail", "viewpoint", "park"],
-    work: ["coworking", "library", "office"],
-    parks: ["park", "garden"],
-  };
-  const normalized = normalizeCategory(category);
-  const groups = await Promise.all((aliases[normalized] ?? [category]).map((q) => photonSearch(q, { latitude, longitude }, Math.min(12, limit))));
-  return dedupe(groups.flat())
-    .map((item) => ({ ...item, category: normalized }))
-    .sort((a, b) => distanceSq(a.latitude, a.longitude, latitude, longitude) - distanceSq(b.latitude, b.longitude, latitude, longitude))
-    .slice(0, limit);
-}
-
-async function photonSearch(text: string, bias: PlaceBias, limit: number): Promise<WorldPlaceResult[]> {
-  try {
-    const params = new URLSearchParams({ q: text, limit: String(limit) });
-    if (bias) {
-      params.set("lat", String(bias.latitude));
-      params.set("lon", String(bias.longitude));
-    }
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6500);
-    const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`, { signal: controller.signal }).finally(() => clearTimeout(timeout));
-    if (!response.ok) return [];
-    const payload = await response.json() as { features?: Array<{ geometry?: { coordinates?: [number, number] }; properties?: Record<string, unknown> }> };
-    return dedupe((payload.features ?? []).flatMap((feature, index) => {
-      const coords = feature.geometry?.coordinates;
-      if (!coords) return [];
-      const [longitude, latitude] = coords;
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
-      const p = feature.properties ?? {};
-      const name = clean(p.name) || clean(p.street) || clean(p.city) || clean(p.state) || clean(p.country) || "Location";
-      const city = clean(p.city) || clean(p.state);
-      const country = clean(p.country);
-      const displayName = [name, clean(p.street), city, clean(p.state), country].filter(Boolean).filter((value, position, values) => values.indexOf(value) === position).join(", ");
-      return [{
-        id: `${clean(p.osm_type) ?? "place"}-${String(p.osm_id ?? `${latitude}-${longitude}-${index}`)}`,
-        name,
-        displayName: displayName || name,
-        city,
-        country,
-        latitude,
-        longitude,
-        category: clean(p.osm_value) || clean(p.type),
-      } satisfies WorldPlaceResult];
-    })).slice(0, limit);
-  } catch { return []; }
-}
-
-function parseCategorySearch(text: string): { category: string; location: string } | null {
-  const match = text.trim().match(/^(cafes?|coffee|restaurants?|food|shops?|shopping|malls?|hiking|trails?|coworking|work|parks?|gardens?)\s+(?:in|near|around)\s+(.+)$/i);
-  if (!match) return null;
-  const location = match[2]?.trim();
-  if (!location) return null;
-  return { category: normalizeCategory(match[1] ?? ""), location };
-}
-
-function normalizeCategory(value: string) {
-  const q = value.toLowerCase();
-  if (q.startsWith("cafe") || q === "coffee") return "cafes";
-  if (q.startsWith("restaurant") || q === "food") return "food";
-  if (q.startsWith("shop") || q.startsWith("mall")) return "shopping";
-  if (q.startsWith("hik") || q.startsWith("trail")) return "hiking";
-  if (q.startsWith("work") || q.startsWith("cowork")) return "work";
-  return "parks";
-}
-
-function clean(value: unknown): string | null { return typeof value === "string" && value.trim() ? value.trim() : null; }
-function dedupe(items: WorldPlaceResult[]) {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    const key = `${item.name.toLowerCase()}:${item.latitude.toFixed(5)}:${item.longitude.toFixed(5)}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+export async function searchNearbyPlaces(
+  category: string,
+  latitude: number,
+  longitude: number,
+  limit = 24,
+  options?: { radiusMeters?: number; signal?: AbortSignal; quality?: "fast" | "full" },
+): Promise<WorldPlaceResult[]> {
+  const params = new URLSearchParams({
+    category,
+    lat: String(latitude),
+    lon: String(longitude),
+    radius: String(options?.radiusMeters ?? 8_000),
+    limit: String(Math.max(1, Math.min(50, limit))),
+    quality: options?.quality ?? "fast",
   });
+  const timeoutMs = (options?.quality ?? "fast") === "fast" ? 4_500 : 8_500;
+  const result = await apiRequest<{ data: WorldPlaceResult[] }>(`/api/places/nearby?${params.toString()}`, { signal: options?.signal }, timeoutMs);
+  return result.data;
 }
-function distanceSq(lat: number, lon: number, anchorLat: number, anchorLon: number) { return (lat - anchorLat) ** 2 + (lon - anchorLon) ** 2; }
+
+export async function reversePlaceLabel(coordinate: Coordinates, signal?: AbortSignal) {
+  const params = new URLSearchParams({ lat: String(coordinate.latitude), lon: String(coordinate.longitude) });
+  const result = await apiRequest<{ data: { label: string; city: string | null; country: string | null } }>(`/api/places/reverse?${params.toString()}`, { signal });
+  return result.data;
+}
+
+export async function fetchMapRoute(origin: Coordinates, destination: Coordinates, mode: TravelMode, signal?: AbortSignal): Promise<MapRoute> {
+  const params = new URLSearchParams({
+    originLat: String(origin.latitude),
+    originLon: String(origin.longitude),
+    destinationLat: String(destination.latitude),
+    destinationLon: String(destination.longitude),
+    mode,
+  });
+  const result = await apiRequest<{ data: MapRoute }>(`/api/places/route?${params.toString()}`, { signal });
+  return result.data;
+}
+
+export async function resolveVerifiedPlaceImages(places: DiscoverPlace[], signal?: AbortSignal) {
+  if (!places.length) return new Map<string, PlaceImage | null>();
+  const result = await apiRequest<{ data: Array<{ id: string; image: PlaceImage | null }> }>("/api/places/images", {
+    method: "POST",
+    signal,
+    body: JSON.stringify({
+      places: places.slice(0, 20).map((place) => ({
+        id: place.id,
+        provider: place.provider,
+        providerId: place.providerId,
+        osmType: place.osmType ?? null,
+        osmId: place.osmId ?? null,
+        imageRefs: place.imageRefs ?? null,
+      })),
+    }),
+  }, 20_000);
+  return new Map(result.data.map((item) => [item.id, item.image]));
+}
+
+export function worldResultToDiscoverPlace(item: WorldPlaceResult, origin?: Coordinates | null): DiscoverPlace {
+  return {
+    id: item.id,
+    provider: item.provider ?? "osm",
+    providerId: item.providerId ?? item.id,
+    osmType: item.osmType ?? null,
+    osmId: item.osmId ?? null,
+    name: item.name,
+    subtitle: item.displayName || item.address || [item.city, item.country].filter(Boolean).join(", ") || "Mapped place",
+    address: item.address ?? null,
+    latitude: item.latitude,
+    longitude: item.longitude,
+    category: item.category || "Place",
+    city: item.city ?? null,
+    country: item.country ?? null,
+    distanceMeters: origin ? haversineMeters(origin.latitude, origin.longitude, item.latitude, item.longitude) : null,
+    openingHours: item.openingHours ?? null,
+    website: item.website ?? null,
+    phone: item.phone ?? null,
+    sourceUrl: item.sourceUrl ?? null,
+    imageRefs: item.imageRefs ?? null,
+    image: null,
+  };
+}
+
+export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const r = 6_371_000;
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * r * Math.asin(Math.sqrt(a));
+}
