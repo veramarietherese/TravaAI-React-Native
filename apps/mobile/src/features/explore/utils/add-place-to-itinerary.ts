@@ -25,6 +25,8 @@ export async function addDiscoverPlaceToItinerary(input: {
     longitude: input.place.longitude,
     startTime,
     estimatedCost: 0,
+    placeProvider: input.place.provider,
+    placeProviderId: input.place.providerId,
   };
 
   await appendLocalWorkspace(input.trip, localActivity);
@@ -46,15 +48,16 @@ export async function addDiscoverPlaceToItinerary(input: {
     });
     serverSynced = true;
   } catch {
-    // The current trip workspace is local-first. A failed API write must not discard the user's addition.
+    // Local-first workspace preserves the user's addition when the API is unavailable.
   }
 
   return { serverSynced };
 }
 
 async function appendLocalWorkspace(trip: TripSummary, activity: Record<string, unknown>) {
-  const v2 = `trava:pixel-workspace:v2:${trip.id || "local-japan"}`;
-  const v1 = `trava:pixel-workspace:v1:${trip.id || "local-japan"}`;
+  const safeTripId = trip.id || "local-trip";
+  const v2 = `trava:pixel-workspace:v2:${safeTripId}`;
+  const v1 = `trava:pixel-workspace:v1:${safeTripId}`;
   const rawV2 = await AsyncStorage.getItem(v2);
   const rawV1 = rawV2 ? null : await AsyncStorage.getItem(v1);
   const raw = rawV2 ?? rawV1;
@@ -62,11 +65,7 @@ async function appendLocalWorkspace(trip: TripSummary, activity: Record<string, 
   let state: Record<string, unknown>;
   try {
     state = raw ? JSON.parse(raw) as Record<string, unknown> : {
-      totalBudget: Number(trip.totalBudget || 0),
-      activities: [],
-      expenses: [],
-      checklist: [],
-      documents: [],
+      totalBudget: Number(trip.totalBudget || 0), activities: [], expenses: [], checklist: [], documents: [],
     };
   } catch {
     state = { totalBudget: Number(trip.totalBudget || 0), activities: [], expenses: [], checklist: [], documents: [] };
@@ -83,7 +82,6 @@ function normalizeTime(value: string) {
   const minute = Math.min(59, Math.max(0, Number(match[2])));
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
-
 function dateForDay(startDate: string | null, dayNumber: number) {
   if (!startDate) return null;
   const date = new Date(`${startDate}T12:00:00`);
@@ -91,12 +89,12 @@ function dateForDay(startDate: string | null, dayNumber: number) {
   date.setDate(date.getDate() + dayNumber - 1);
   return date.toISOString().slice(0, 10);
 }
-
 function toActivityCategory(category: string): "flight" | "stay" | "food" | "sightseeing" | "transport" | "shopping" | "meeting" | "other" {
   const value = category.toLowerCase();
-  if (value.includes("food") || value.includes("cafe") || value.includes("restaurant")) return "food";
+  if (value.includes("food") || value.includes("cafe") || value.includes("café") || value.includes("restaurant")) return "food";
+  if (value.includes("hotel") || value.includes("hostel") || value.includes("stay")) return "stay";
+  if (value.includes("transport") || value.includes("station") || value.includes("airport")) return "transport";
   if (value.includes("shop")) return "shopping";
-  if (value.includes("work")) return "meeting";
-  if (value.includes("park") || value.includes("hiking") || value.includes("sight")) return "sightseeing";
+  if (value.includes("park") || value.includes("activity") || value.includes("attraction") || value.includes("sight")) return "sightseeing";
   return "other";
 }
