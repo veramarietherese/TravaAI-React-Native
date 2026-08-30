@@ -298,7 +298,7 @@ export function MessagesScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <LinearGradient colors={["#FBFAFF", "#FFFFFF", "#FFF8FC"]} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={["#FBFAFF", "#FFFFFF", "#FFF8FC"]} style={StyleSheet.absoluteFill} />
       <View style={styles.screenWidth}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
