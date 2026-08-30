@@ -23,6 +23,7 @@ import { TravaGlassNav } from "@/components/navigation/TravaGlassNav";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { apiRequest } from "@/lib/api-client";
 import { createTrip } from "../api/trips.api";
+import { TravaButton } from "@/components/ui/TravaButton";
 
 type DestinationChoice = {
   id: string;
@@ -347,12 +348,8 @@ export function CreateTripScreen() {
           </View>
 
           <View style={styles.actions}>
-            <Pressable disabled={mutation.isPending} onPress={() => router.back()} style={styles.cancelButton}><Text style={styles.cancelText}>Cancel</Text></Pressable>
-            <Pressable disabled={mutation.isPending} onPress={() => mutation.mutate()} style={styles.createPress}>
-              <LinearGradient colors={["#76B7F8", "#A1A6F3", "#EF8AB8"]} start={{x:0,y:0}} end={{x:1,y:1}} style={[styles.createButton, mutation.isPending && styles.disabled]}>
-                {mutation.isPending ? <ActivityIndicator color="#FFF" /> : <><Text style={styles.createText}>Create trip</Text><Ionicons name="arrow-forward" size={24} color="#FFF" /></>}
-              </LinearGradient>
-            </Pressable>
+            <TravaButton label="Cancel" tone="blue" variant="default" disabled={mutation.isPending} onPress={() => router.back()} style={{ flex: 1 }} />
+            <TravaButton label="Create trip" iconName="briefcase-outline" tone="pink" variant="default" loading={mutation.isPending} onPress={() => mutation.mutate()} style={{ flex: 2 }} />
           </View>
         </View>
       </ScrollView>
