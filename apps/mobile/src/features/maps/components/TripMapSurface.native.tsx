@@ -3,11 +3,72 @@ import { StyleSheet, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { TripMapSurfaceProps } from "./TripMapSurface.types";
 
-export function TripMapSurface({activities,selectedActivityId,onSelectActivity,height=360}:TripMapSurfaceProps){
- const html=useMemo(()=>makeHtml(activities,selectedActivityId),[activities,selectedActivityId]);
- const onMessage=(event:WebViewMessageEvent)=>{try{const p=JSON.parse(event.nativeEvent.data) as {type?:string;id?:string};if(p.type==="trava-select"&&p.id)onSelectActivity?.(p.id)}catch{}};
- return <View style={[s.wrap,{height}]}><WebView source={{html}} onMessage={onMessage} javaScriptEnabled domStorageEnabled originWhitelist={["*"]} style={s.web}/></View>;
+export function TripMapSurface({
+  activities,
+  selectedActivityId,
+  onSelectActivity,
+  height = 360,
+  mapMode = "map",
+}: TripMapSurfaceProps) {
+  const html = useMemo(
+    () => makeHtml(activities, selectedActivityId, mapMode),
+    [activities, selectedActivityId, mapMode],
+  );
+  const onMessage = (event: WebViewMessageEvent) => {
+    try {
+      const payload = JSON.parse(event.nativeEvent.data) as { type?: string; id?: string };
+      if (payload.type === "trava-select" && payload.id) onSelectActivity?.(payload.id);
+    } catch {
+      // Ignore non-TRAVA webview messages.
+    }
+  };
+  return (
+    <View style={[styles.wrap, { height }]}>
+      <WebView source={{ html }} onMessage={onMessage} javaScriptEnabled domStorageEnabled originWhitelist={["*"]} style={styles.web} />
+    </View>
+  );
 }
-function makeHtml(activities:TripMapSurfaceProps["activities"],selected:string|null|undefined){const pts=activities.filter(a=>a.latitude!=null&&a.longitude!=null).map(a=>({...a,selected:a.id===selected,emoji:emojiFor(a.category)}));const data=JSON.stringify(pts).replace(/</g,"\\u003c");return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>*{box-sizing:border-box}html,body,#map{width:100%;height:100%;margin:0}.leaflet-tile{filter:saturate(.9) brightness(1.04)}.marker{position:relative;width:46px;height:54px}.bubble{width:42px;height:42px;border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid #fff;box-shadow:0 8px 18px rgba(36,43,55,.22)}.marker:after{content:'';position:absolute;left:17px;top:36px;width:11px;height:11px;background:#fff;transform:rotate(45deg)}.marker.sel .bubble{box-shadow:0 0 0 6px rgba(45,99,230,.14),0 9px 20px rgba(36,43,55,.22)}.fit,.locate{position:absolute;z-index:900;border:0;background:rgba(255,255,255,.96);box-shadow:0 8px 18px rgba(36,43,55,.16)}.fit{right:12px;top:12px;height:36px;border-radius:18px;padding:0 12px;font-weight:800}.locate{right:12px;bottom:12px;width:42px;height:42px;border-radius:21px;font-size:20px}</style></head><body><div id="map"></div><button class="fit" id="fit">Fit route</button><button class="locate" id="locate">⌖</button><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>const pts=${data};const map=L.map('map',{zoomControl:true,attributionControl:false,scrollWheelZoom:true,touchZoom:true});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);const ll=[];pts.forEach(p=>{ll.push([p.latitude,p.longitude]);const icon=L.divIcon({className:'',html:'<div class="marker '+(p.selected?'sel':'')+'"><div class="bubble">'+p.emoji+'</div></div>',iconSize:[46,54],iconAnchor:[23,50]});const m=L.marker([p.latitude,p.longitude],{icon}).addTo(map);m.bindPopup('<b>'+p.title+'</b><br><small>'+p.locationName+'</small>');m.on('click',()=>window.ReactNativeWebView.postMessage(JSON.stringify({type:'trava-select',id:p.id})));if(p.selected)setTimeout(()=>m.openPopup(),80)});if(ll.length>1)L.polyline(ll,{color:'#6f8fdc',weight:3,dashArray:'7 7'}).addTo(map);function fit(){if(ll.length===1)map.setView(ll[0],14);else if(ll.length>1)map.fitBounds(L.latLngBounds(ll).pad(.22),{maxZoom:14});else map.setView([35.6812,139.7671],11)}fit();document.getElementById('fit').onclick=fit;let user=null;if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{user=L.circleMarker([p.coords.latitude,p.coords.longitude],{radius:8,color:'#fff',weight:4,fillColor:'#2f6df4',fillOpacity:1}).addTo(map)},()=>{});document.getElementById('locate').onclick=()=>user?map.setView(user.getLatLng(),15):fit();setTimeout(()=>map.invalidateSize(),100)</script></body></html>`}
-function emojiFor(category:string){const k=String(category||'').toLowerCase();if(k.includes('food'))return'🍜';if(k.includes('stay')||k.includes('hotel'))return'🛏️';if(k.includes('flight')||k.includes('airport'))return'✈️';if(k.includes('transport'))return'🚕';if(k.includes('shop'))return'🛍️';if(k.includes('meeting')||k.includes('work'))return'💼';if(k.includes('sight'))return'📸';return'📍'}
-const s=StyleSheet.create({wrap:{overflow:"hidden",borderRadius:27,borderWidth:1,borderColor:"#E2E5EA",backgroundColor:"#EEF2F5"},web:{flex:1,backgroundColor:"transparent"}});
+
+function makeHtml(
+  activities: TripMapSurfaceProps["activities"],
+  selected: string | null | undefined,
+  mapMode: "map" | "satellite",
+) {
+  const points = activities
+    .filter((activity) => activity.latitude != null && activity.longitude != null)
+    .map((activity, index) => ({
+      ...activity,
+      index: index + 1,
+      selected: activity.id === selected,
+      color: colorFor(activity.category),
+    }));
+  const data = JSON.stringify(points).replace(/</g, "\\u003c");
+  const satellite = mapMode === "satellite";
+  const tileUrl = satellite
+    ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const attribution = satellite ? "Tiles © Esri" : "© OpenStreetMap contributors";
+
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>
+*{box-sizing:border-box}html,body,#map{width:100%;height:100%;margin:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#eef4f8;overflow:hidden}.leaflet-tile{filter:${satellite ? "saturate(.92) brightness(1.01)" : "saturate(.78) brightness(1.08) contrast(.91)"}}.leaflet-control-zoom{border:0!important;border-radius:15px!important;overflow:hidden;box-shadow:0 10px 26px rgba(45,62,90,.15)!important}.leaflet-control-zoom a{border:0!important;background:rgba(255,255,255,.96)!important;color:#1d2d49!important}.leaflet-control-attribution{font-size:8px!important;background:rgba(255,255,255,.8)!important}.trava-marker{position:relative;width:126px;height:52px}.pin{position:absolute;left:0;top:0;width:34px;height:34px;border-radius:17px;border:3px solid #fff;background:var(--c);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:900;box-shadow:0 8px 20px rgba(39,55,84,.24)}.label{position:absolute;left:21px;top:28px;max-width:105px;padding:5px 9px;border-radius:11px;background:rgba(255,255,255,.97);color:#17243a;font-size:9px;font-weight:800;line-height:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 7px 18px rgba(42,56,82,.13);border:1px solid rgba(229,235,243,.95)}.trava-marker.sel .pin{transform:scale(1.12);box-shadow:0 0 0 6px rgba(52,126,255,.16),0 8px 20px rgba(39,55,84,.24)}.fit,.locate{position:absolute;z-index:900;border:0;background:rgba(255,255,255,.96);box-shadow:0 9px 22px rgba(40,55,82,.15);color:#20334f}.fit{right:12px;top:74px;height:38px;border-radius:19px;padding:0 13px;font-size:10px;font-weight:900}.locate{right:12px;bottom:12px;width:44px;height:44px;border-radius:22px;font-size:20px}
+</style></head><body><div id="map"></div><button class="fit" id="fit">Fit route</button><button class="locate" id="locate">⌖</button><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
+const pts=${data};const map=L.map('map',{zoomControl:true,attributionControl:true,scrollWheelZoom:true,touchZoom:true});L.tileLayer('${tileUrl}',{maxZoom:19,attribution:'${attribution}'}).addTo(map);const ll=[];pts.forEach(p=>{ll.push([p.latitude,p.longitude]);const html='<div class="trava-marker '+(p.selected?'sel':'')+'" style="--c:'+p.color+'"><div class="pin">'+p.index+'</div><div class="label">'+esc(shortName(p.locationName||p.title))+'</div></div>';const icon=L.divIcon({className:'',html,iconSize:[126,52],iconAnchor:[17,17],popupAnchor:[0,-20]});const marker=L.marker([p.latitude,p.longitude],{icon}).addTo(map);marker.bindPopup('<b>'+esc(p.title)+'</b><br><small>'+esc(p.locationName)+'</small>');marker.on('click',()=>window.ReactNativeWebView.postMessage(JSON.stringify({type:'trava-select',id:p.id})));if(p.selected)setTimeout(()=>marker.openPopup(),90)});if(ll.length>1){L.polyline(ll,{color:'#fff',weight:7,opacity:.9}).addTo(map);L.polyline(ll,{color:'#2779F5',weight:3.6,opacity:.96}).addTo(map)}function fit(){if(ll.length===1)map.setView(ll[0],14);else if(ll.length>1)map.fitBounds(L.latLngBounds(ll).pad(.22),{maxZoom:14});else map.setView([34.6937,135.5023],11)}fit();document.getElementById('fit').onclick=fit;let user=null;if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{user=L.circleMarker([p.coords.latitude,p.coords.longitude],{radius:8,color:'#fff',weight:4,fillColor:'#2f6df4',fillOpacity:1}).addTo(map)},()=>{});document.getElementById('locate').onclick=()=>user?map.setView(user.getLatLng(),15):fit();setTimeout(()=>map.invalidateSize(),100);function shortName(s){return String(s||'').split(',')[0].trim()||'Stop'}function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+</script></body></html>`;
+}
+
+function colorFor(category: string) {
+  const value = String(category || "").toLowerCase();
+  if (value.includes("food")) return "#FF5A94";
+  if (value.includes("stay") || value.includes("hotel")) return "#E653A4";
+  if (value.includes("flight") || value.includes("airport")) return "#2788F6";
+  if (value.includes("transport")) return "#7654F5";
+  if (value.includes("shop")) return "#3BAE6F";
+  if (value.includes("meeting") || value.includes("work")) return "#596FD3";
+  if (value.includes("sight")) return "#8357F0";
+  return "#EF8A2C";
+}
+
+const styles = StyleSheet.create({
+  wrap: { overflow: "hidden", borderRadius: 28, borderWidth: 1, borderColor: "#DEE6F0", backgroundColor: "#EEF4F8" },
+  web: { flex: 1, backgroundColor: "transparent" },
+});
