@@ -1,3 +1,4 @@
+import { TravaButton } from "@/components/ui/TravaButton";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -87,8 +88,8 @@ export function BudgetScreen() {
   </ScreenShell></SafeAreaView>;
 }
 
-function Action({ icon, label, colors, color, onPress }: { icon: TravaIconName; label: string; colors: readonly [string, string]; color: string; onPress(): void }) {
-  return <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [s.action, pressed && s.pressed]}><PremiumActionGlyph icon={icon} size={54} colors={colors} color={color}/><Text style={s.actionLabel}>{label}</Text></Pressable>;
+function Action({ icon, label, onPress }: { icon: TravaIconName; label: string; colors: readonly [string, string]; color: string; onPress(): void }) {
+  return <View style={{ flex: 1, alignItems: "center", gap: 9 }}><TravaButton tone="blue" size="icon" label={label} icon={icon} onPress={onPress}/><Text style={s.actionLabel}>{label}</Text></View>;
 }
 
 
