@@ -1,3 +1,4 @@
+import { TravaButton } from "@/components/ui/TravaButton";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import type { TripMember } from "@trava/shared";
@@ -52,7 +53,7 @@ export function ExpensesScreen() {
       </View>
 
       <Glass style={s.sharedCard}>
-        <View style={s.sectionHead}><View style={s.sectionTitleWrap}><View style={s.peopleCircle}><Ionicons name="people" size={22} color="#507EBB"/></View><View><Text style={s.sectionTitle}>Shared Expenses</Text><Text style={s.sectionSub}>{sharedItems.length} group {sharedItems.length === 1 ? "expense" : "expenses"} · {syncStatus === "live" ? "live sync on" : "saved locally"}</Text></View></View><Pressable onPress={() => setEditor("new")} style={s.addButton}><Ionicons name="add" size={17} color="#507BB4"/><Text style={s.addLink}>Add Expense</Text></Pressable></View>
+        <View style={s.sectionHead}><View style={s.sectionTitleWrap}><View style={s.peopleCircle}><Ionicons name="people" size={22} color="#507EBB"/></View><View><Text style={s.sectionTitle}>Shared Expenses</Text><Text style={s.sectionSub}>{sharedItems.length} group {sharedItems.length === 1 ? "expense" : "expenses"} · {syncStatus === "live" ? "live sync on" : "saved locally"}</Text></View></View><TravaButton tone="blue" size="compact" label="Add Expense" icon="add-outline" onPress={() => setEditor("new")} /></View>
         <View style={s.sharedList}>{sharedItems.slice(0,5).map((expense) => <SharedExpenseCard key={expense.id} expense={expense} people={people} onEdit={() => setEditor(expense)}/>)}</View>{sharedItems.length>5?<Text style={s.moreShared}>+{sharedItems.length-5} more shared expenses</Text>:null}
         {!sharedItems.length ? <View style={s.empty}><Ionicons name="people-outline" size={28} color="#6F97C9"/><Text style={s.emptyTitle}>No shared expenses yet</Text><Text style={s.emptySub}>Add the first group expense and TRAVA will calculate the split.</Text></View> : null}
         <Pressable onPress={() => setManageOpen(true)} style={s.manageButton}><Text style={s.manage}>Manage Shared Expenses</Text><Ionicons name="chevron-forward" size={17} color="#5A82BB"/></Pressable>
@@ -98,8 +99,7 @@ function buildContributors(members: TripMember[], people: number, total: number,
 
 function AvatarStack({ count }: { count: number }) { const visible = Math.min(count, 3); return <View style={s.avatars}>{Array.from({ length: visible }, (_, i) => <View key={`avatar-${i}`} style={[s.avatarCircle, i === 1 && s.avatarTwo, i === 2 && s.avatarThree]}><Ionicons name="person" size={13} color="#4A6080"/></View>)}{count > 3 ? <View style={s.plusTwo}><Text style={s.plusTwoText}>+{count - 3}</Text></View> : null}</View>; }
 function InvoiceBtn({ icon, label, primary = false, onPress }: { icon: TravaIconName; label: string; primary?: boolean; onPress(): void }) {
-  if (primary) return <Pressable onPress={onPress} style={({pressed})=>[s.invoiceBtn,s.invoiceBtnPrimary,pressed&&s.pressed]}><LinearGradient colors={["#74CEF3","#8EABF7","#8EABF7"]} start={{x:0,y:0}} end={{x:1,y:1}} style={s.invoiceBtnGradient}><View style={[s.invoiceBtnHighlight, { pointerEvents: "none" }]} /><Ionicons name={icon} size={19} color="#FFFFFF"/><Text style={s.invoiceBtnTextPrimary}>{label}</Text><Ionicons name="chevron-forward" size={17} color="#FFFFFF"/></LinearGradient></Pressable>;
-  return <Pressable onPress={onPress} style={({ pressed }) => [s.invoiceBtn, pressed && s.pressed]}><Ionicons name={icon} size={19} color="#20242B"/><Text style={s.invoiceBtnText}>{label}</Text></Pressable>;
+  return <TravaButton tone="blue" size={primary ? "default" : "compact"} label={label} icon={icon} trailingIcon={primary ? "chevron-forward" : null} onPress={onPress} style={{ flex: primary ? 1 : undefined }} />;
 }
 
 function ReceiptPreviewModal({ visible, tripName, expenses, contributors, onClose }: { visible: boolean; tripName: string; expenses: LocalExpense[]; contributors: ReceiptContributor[]; onClose(): void }) {
