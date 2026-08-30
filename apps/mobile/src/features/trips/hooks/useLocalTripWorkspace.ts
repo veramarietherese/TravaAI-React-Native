@@ -31,6 +31,7 @@ export type LocalChecklistItem = {
   title: string;
   category: "Packing" | "Money" | "Documents" | "Travel" | "Health" | "General";
   completed: boolean;
+  status?: "todo" | "pending" | "completed";
 };
 export type LocalDocument = {
   id: string;
@@ -126,6 +127,7 @@ export function useLocalTripWorkspace(tripId: string) {
   const [ready, setReady] = useState(false);
   const [syncStatus, setSyncStatus] = useState<WorkspaceSyncStatus>("local");
   const [onlineCount, setOnlineCount] = useState(1);
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const stateRef = useRef(state);
   const revisionRef = useRef(0);
   const senderInstanceId = useId();
@@ -209,6 +211,16 @@ export function useLocalTripWorkspace(tripId: string) {
             setSyncStatus("live");
             const presence = channel?.presenceState() ?? {};
             const count = Object.values(presence).reduce((total, entries) => total + (Array.isArray(entries) ? entries.length : 0), 0);
+            const ids = new Set<string>();
+            for (const [presenceKey, entries] of Object.entries(presence)) {
+              if (presenceKey) ids.add(presenceKey);
+              if (!Array.isArray(entries)) continue;
+              for (const entry of entries) {
+                const userId = (entry as { user_id?: unknown }).user_id;
+                if (typeof userId === "string" && userId) ids.add(userId);
+              }
+            }
+            setOnlineUserIds([...ids]);
             setOnlineCount(Math.max(1, count));
           });
 
@@ -230,6 +242,7 @@ export function useLocalTripWorkspace(tripId: string) {
       if (channel) void getSupabaseClient().removeChannel(channel);
       channelRef.current = null;
       setOnlineCount(1);
+      setOnlineUserIds([]);
     };
   }, [tripId]);
 
@@ -273,8 +286,8 @@ export function useLocalTripWorkspace(tripId: string) {
     addExpense(expense: Omit<LocalExpense, "id">) { commit((s) => ({ ...s, expenses: [{ ...expense, id: makeId("e") }, ...s.expenses] })); },
     updateExpense(id: string, patch: Partial<LocalExpense>) { commit((s) => ({ ...s, expenses: s.expenses.map((e) => e.id === id ? { ...e, ...patch } : e) })); },
     deleteExpense(id: string) { commit((s) => ({ ...s, expenses: s.expenses.filter((e) => e.id !== id) })); },
-    addChecklist(title: string, category: LocalChecklistItem["category"]) { commit((s) => ({ ...s, checklist: [{ id: makeId("c"), title, category, completed: false }, ...s.checklist] })); },
-    toggleChecklist(id: string) { commit((s) => ({ ...s, checklist: s.checklist.map((i) => i.id === id ? { ...i, completed: !i.completed } : i) })); },
+    addChecklist(title: string, category: LocalChecklistItem["category"]) { commit((s) => ({ ...s, checklist: [{ id: makeId("c"), title, category, completed: false, status: "todo" }, ...s.checklist] })); },
+    toggleChecklist(id: string) { commit((s) => ({ ...s, checklist: s.checklist.map((i) => i.id === id ? { ...i, completed: !i.completed, status: !i.completed ? "completed" : "todo" } : i) })); },
     updateChecklist(id: string, patch: Partial<LocalChecklistItem>) { commit((s) => ({ ...s, checklist: s.checklist.map((i) => i.id === id ? { ...i, ...patch } : i) })); },
     deleteChecklist(id: string) { commit((s) => ({ ...s, checklist: s.checklist.filter((i) => i.id !== id) })); },
     addActivity(activity: Omit<LocalActivity, "id">) { commit((s) => ({ ...s, activities: [...s.activities, { ...activity, id: makeId("a") }] })); },
@@ -289,5 +302,5 @@ export function useLocalTripWorkspace(tripId: string) {
     reset() { const fresh = cloneSeed(); setState(fresh); stateRef.current = fresh; void AsyncStorage.setItem(key(tripId), JSON.stringify(fresh)); },
   }), [commit, tripId]);
 
-  return { state, ready, syncStatus, onlineCount, ...api };
+  return { state, ready, syncStatus, onlineCount, onlineUserIds, ...api };
 }
