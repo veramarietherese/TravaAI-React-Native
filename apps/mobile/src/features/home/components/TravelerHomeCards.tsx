@@ -69,8 +69,8 @@ export function ActiveTripCard({
   const countdown = daysUntil(trip.startDate);
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`Open ${trip.name}`} onPress={onOpen} style={({ pressed }) => [styles.tripCard, pressed && styles.pressed]}>
-      <Image source={tripCoverSource({ name: trip.name, destination: trip.destination, coverImageUrl: trip.imageUrl }, 0)} contentFit="cover" style={StyleSheet.absoluteFillObject} />
-      <LinearGradient colors={["rgba(22,26,55,0.06)", "rgba(22,26,55,0.65)"]} style={StyleSheet.absoluteFillObject} />
+      <Image source={tripCoverSource({ name: trip.name, destination: trip.destination, coverImageUrl: trip.imageUrl }, 0)} contentFit="cover" style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={["rgba(22,26,55,0.06)", "rgba(22,26,55,0.65)"]} style={StyleSheet.absoluteFill} />
       <View style={styles.tripContent}>
         <Text style={styles.tripEyebrow}>{countdown !== null && countdown <= 0 ? "ACTIVE TRIP" : "UPCOMING TRIP"}</Text>
         <Text numberOfLines={1} style={styles.tripTitle}>{trip.destination || trip.name}</Text>
