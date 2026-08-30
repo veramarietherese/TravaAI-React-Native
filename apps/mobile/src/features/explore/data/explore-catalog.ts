@@ -34,7 +34,7 @@ export type DemoAgency = {
   initials: string;
 };
 
-export const CEBU_CENTER = { latitude: 10.3157, longitude: 123.8854 } as const;
+export const CEBU_CENTER = { latitude: 10.3157, longitude: 123.8854 };
 
 export const EXPLORE_CATEGORIES: ReadonlyArray<{
   name: ExploreCategory;
@@ -44,8 +44,8 @@ export const EXPLORE_CATEGORIES: ReadonlyArray<{
   { name: "Attractions", icon: "business-outline", api: "attractions" },
   { name: "Food", icon: "restaurant-outline", api: "food" },
   { name: "Cafés", icon: "cafe-outline", api: "cafes" },
-  { name: "Activities", icon: "walk-outline", api: "tourism" },
-  { name: "Hidden Gems", icon: "location-outline", api: "attractions" },
+  { name: "Activities", icon: "walk-outline", api: "activities" },
+  { name: "Hidden Gems", icon: "location-outline", api: "hidden" },
   { name: "Shopping", icon: "bag-handle-outline", api: "shopping" },
 ];
 
