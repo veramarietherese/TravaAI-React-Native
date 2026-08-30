@@ -8,9 +8,6 @@ function candidateBases() {
   const values: string[] = [];
   if (Platform.OS === "web" && typeof window !== "undefined") {
     const host = window.location?.hostname;
-    // On web, prefer the API on the same machine/host as Expo. This prevents a
-    // stale phone-LAN EXPO_PUBLIC_API_BASE_URL from generating refused requests
-    // while developing at localhost:8081.
     if (host === "localhost" || host === "127.0.0.1") values.push("http://localhost:3001");
     else if (host) values.push(`http://${host}:3001`);
   }
@@ -19,7 +16,11 @@ function candidateBases() {
   return [...new Set(values.filter(Boolean))];
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+  timeoutMs = 12_000,
+): Promise<T> {
   const bases = candidateBases();
   if (!bases.length) throw new Error("Missing EXPO_PUBLIC_API_BASE_URL.");
 
@@ -31,25 +32,75 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   };
 
   let lastNetworkError: unknown = null;
+
   for (const base of bases) {
+    const controller = new AbortController();
+    let timedOut = false;
+    const onExternalAbort = () => controller.abort();
+
+    if (options.signal?.aborted) controller.abort();
+    else options.signal?.addEventListener("abort", onExternalAbort, { once: true });
+
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12_000);
-      const response = await fetch(`${base}${path}`, { ...options, headers, signal: controller.signal }).finally(() => clearTimeout(timeout));
-      const body = (await response.json().catch(() => null)) as T | { error?: { message?: string } } | null;
+      const response = await fetch(`${base}${path}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+
+      const body = (await response.json().catch(() => null)) as
+        | T
+        | { error?: { code?: string; message?: string } }
+        | null;
+
       if (!response.ok) {
-        const errorBody = body as { error?: { message?: string } } | null;
-        throw new Error(errorBody?.error?.message ?? `API request failed with status ${response.status}.`);
+        const errorBody = body as { error?: { code?: string; message?: string } } | null;
+        const error = new Error(
+          errorBody?.error?.message ?? `API request failed with status ${response.status}.`,
+        );
+        Object.assign(error, {
+          code: errorBody?.error?.code,
+          status: response.status,
+        });
+        throw error;
       }
+
       return body as T;
     } catch (error) {
-      if (error instanceof TypeError || String(error).includes("Failed to fetch") || String(error).includes("Network request failed")) {
-        lastNetworkError = error;
+      if (options.signal?.aborted) throw error;
+
+      const isAbort =
+        timedOut ||
+        (error instanceof Error && error.name === "AbortError") ||
+        String(error).includes("AbortError");
+
+      const isNetwork =
+        error instanceof TypeError ||
+        String(error).includes("Failed to fetch") ||
+        String(error).includes("Network request failed");
+
+      if (isAbort || isNetwork) {
+        lastNetworkError = timedOut
+          ? new Error(`Request timed out after ${Math.round(timeoutMs / 1000)} seconds.`)
+          : error;
         continue;
       }
+
       throw error;
+    } finally {
+      clearTimeout(timeout);
+      options.signal?.removeEventListener("abort", onExternalAbort);
     }
   }
 
-  throw new Error(`TRAVA API is not reachable. Start the API server with \"npm run api\" from the repository root. ${lastNetworkError instanceof Error ? lastNetworkError.message : ""}`.trim());
+  throw new Error(
+    `TRAVA API is not reachable. Start the API server with "npm run api" from the repository root. ${
+      lastNetworkError instanceof Error ? lastNetworkError.message : ""
+    }`.trim(),
+  );
 }
