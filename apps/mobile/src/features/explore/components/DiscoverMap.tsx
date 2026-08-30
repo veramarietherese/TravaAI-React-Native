@@ -1,2 +1,2 @@
 export { DiscoverMap } from "./DiscoverMap.native";
-export type { DiscoverPlace, DiscoverMapProps } from "./DiscoverMap.types";
+export type { DiscoverPlace, PlaceImage, MapRoute, Coordinates, TravelMode } from "./DiscoverMap.types";
