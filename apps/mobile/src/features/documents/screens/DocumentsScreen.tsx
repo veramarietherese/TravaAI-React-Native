@@ -9,6 +9,7 @@ import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PremiumBlueButton } from "@/components/ui/PremiumBlueButton";
+import { TravaButton } from "@/components/ui/TravaButton";
 import { Glass, PX, ScreenShell, type TravaIconName } from "@/features/trips/components/TravaPixelUI";
 import { useLocalTripWorkspace, type LocalDocument } from "@/features/trips/hooks/useLocalTripWorkspace";
 import { useTripLite } from "@/features/trips/hooks/useTripLite";
@@ -35,7 +36,7 @@ export function DocumentsScreen() {
     <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}><View style={s.max}>
       <DocumentsHero documentCount={state.documents.length}/>
       <View style={s.topRow}><View><Text style={s.sectionTitle}>Files</Text><Text style={s.sectionSub}>Tap anywhere on a file card to preview it.</Text></View>
-        <Pressable onPress={() => setAddOpen(true)} style={s.addButton}><LinearGradient colors={["#74CEF3", "#8EABF7", "#F1A7C9"]} style={s.addGradient}><Ionicons name="cloud-upload-outline" size={18} color="#FFFFFF"/><Text style={s.addText}>Add file</Text></LinearGradient></Pressable>
+        <TravaButton label="Add file" iconName="add" tone="pink" variant="compact" onPress={() => setAddOpen(true)} />
       </View>
 
       <View style={s.grid}>{state.documents.map((doc) => {
