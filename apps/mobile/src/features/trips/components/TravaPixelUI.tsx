@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { type Href, usePathname, useRouter } from "expo-router";
-import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { useState, type ComponentProps, type PropsWithChildren, type ReactNode } from "react";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { TravaGlassNav } from "@/components/navigation/TravaGlassNav";
+import { TravaButton } from "@/components/ui/TravaButton";
+import { deleteTrip } from "@/features/trips/api/trips.api";
 
 export type TravaIconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -24,10 +26,7 @@ export function TravaIcon({ name, size = 22, color = PX.ink }: { name: TravaIcon
   return <Ionicons name={name} size={size} color={color} />;
 }
 
-export function FauxStatusBar() {
-  if (Platform.OS !== "web") return null;
-  return <View style={styles.status}><Text style={styles.statusTime}>9:41</Text><View style={styles.statusIcons}><Ionicons name="cellular" size={14} color="#111318"/><Ionicons name="wifi" size={14} color="#111318"/><Ionicons name="battery-full" size={16} color="#111318"/></View></View>;
-}
+export function FauxStatusBar() { return null; }
 
 export function Glass({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
   return <View style={[styles.glass, style]}>{children}</View>;
@@ -38,7 +37,7 @@ export function GradientPill({ children, style }: PropsWithChildren<{ style?: St
 }
 
 export function CircleButton({ children, onPress, label }: { children: ReactNode; onPress?(): void; label: string }) {
-  return <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.circle, pressed && styles.pressed]}>{children}</Pressable>;
+  return <TravaButton tone="blue" size="icon" label={label} onPress={() => onPress?.()}>{children}</TravaButton>;
 }
 
 const workspaceTabs = [
@@ -48,27 +47,83 @@ const workspaceTabs = [
 export function WorkspaceHeader({ tripId, title }: { tripId: string; title: string }) {
   const router = useRouter();
   const path = usePathname();
-  return <View style={styles.headerWrap}>
-    <FauxStatusBar />
-    <View style={styles.headerTop}>
-      <CircleButton label="Back to trips" onPress={() => router.replace("/(traveler)/(tabs)/trips" as Href)}><Ionicons name="chevron-back" size={23} color={PX.ink}/></CircleButton>
-      <Text numberOfLines={1} style={styles.tripTitle}>{title || "Trip"}</Text>
-      <View style={styles.headerActions}>
-        <View style={styles.liveButtonWrap}><CircleButton label="Travel group and live collaboration" onPress={() => router.push(`/trip/${tripId}/members` as Href)}><Ionicons name="people-outline" size={20} color={PX.ink}/></CircleButton><View style={styles.liveDot}/></View>
-        <View><CircleButton label="Notifications" onPress={() => Alert.alert("Trip notifications", "You’re all caught up for this trip.")}><Ionicons name="notifications-outline" size={20} color={PX.ink}/></CircleButton><View style={styles.dot}/></View>
-        <CircleButton label="More trip options" onPress={() => Alert.alert("Trip options", "Use Overview to edit trip details or manage the local workspace.")}><Ionicons name="ellipsis-horizontal" size={21} color={PX.ink}/></CircleButton>
+  const [panel, setPanel] = useState<null | "notifications" | "more" | "delete">(null);
+  const [deleting, setDeleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function confirmDelete() {
+    if (deleting) return;
+    setDeleting(true);
+    setActionError(null);
+    try {
+      await deleteTrip(tripId);
+      setPanel(null);
+      router.replace("/(traveler)/(tabs)/trips" as Href);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "TRAVA could not delete this trip.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return <>
+    <View style={styles.headerWrap}>
+      <FauxStatusBar />
+      <View style={styles.headerTop}>
+        <CircleButton label="Back to trips" onPress={() => router.replace("/(traveler)/(tabs)/trips" as Href)}><Ionicons name="chevron-back" size={23} color="#2F72E8"/></CircleButton>
+        <Text numberOfLines={1} style={styles.tripTitle}>{title || "Trip"}</Text>
+        <View style={styles.headerActions}>
+          <View style={styles.liveButtonWrap}><CircleButton label="Travel group and live collaboration" onPress={() => router.push(`/trip/${tripId}/members` as Href)}><Ionicons name="people-outline" size={20} color="#2F72E8"/></CircleButton><View style={styles.liveDot}/></View>
+          <CircleButton label="Trip notifications" onPress={() => setPanel("notifications")}><Ionicons name="notifications-outline" size={20} color="#2F72E8"/></CircleButton>
+          <CircleButton label="More trip options" onPress={() => setPanel("more")}><Ionicons name="ellipsis-horizontal" size={21} color="#2F72E8"/></CircleButton>
+        </View>
       </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+        {workspaceTabs.map(([label, suffix], index) => {
+          const target = `/trip/${tripId}${suffix}`;
+          const active = suffix ? path.endsWith(suffix) : path === `/trip/${tripId}` || path === `/trip/${tripId}/`;
+          return <Pressable key={label} onPress={() => router.replace(target as Href)} style={({ pressed }) => [styles.tabSlot, index === workspaceTabs.length - 1 && styles.tabSlotLast, active && styles.activeTab, pressed && styles.tabPressed]}>
+            <Text style={[styles.tabText, active && styles.activeTabText]}>{label}</Text>
+          </Pressable>;
+        })}
+      </ScrollView>
     </View>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
-      {workspaceTabs.map(([label, suffix], index) => {
-        const target = `/trip/${tripId}${suffix}`;
-        const active = suffix ? path.endsWith(suffix) : path === `/trip/${tripId}` || path === `/trip/${tripId}/`;
-        return <Pressable key={label} onPress={() => router.replace(target as Href)} style={({ pressed }) => [styles.tabSlot, index === workspaceTabs.length - 1 && styles.tabSlotLast, active && styles.activeTab, pressed && styles.tabPressed]}>
-          <Text style={[styles.tabText, active && styles.activeTabText]}>{label}</Text>
-        </Pressable>;
-      })}
-    </ScrollView>
-  </View>;
+
+    <Modal visible={panel !== null} transparent animationType="fade" onRequestClose={() => setPanel(null)}>
+      <View style={styles.actionBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setPanel(null)} />
+        <View style={styles.actionSheet}>
+          {panel === "notifications" ? <>
+            <View style={styles.actionIcon}><Ionicons name="notifications-outline" size={24} color="#2F72E8"/></View>
+            <Text style={styles.actionTitle}>Trip notifications</Text>
+            <Text style={styles.actionBody}>There are no verified unread notifications for this trip right now. Use these shortcuts to review the two areas that most often need attention.</Text>
+            <TravaButton label="Open checklist" iconName="briefcase-outline" tone="blue" onPress={() => { setPanel(null); router.push(`/trip/${tripId}/checklist` as Href); }}/>
+            <TravaButton label="Open itinerary" iconName="airplane-outline" tone="blue" onPress={() => { setPanel(null); router.push(`/trip/${tripId}/itinerary` as Href); }}/>
+          </> : null}
+
+          {panel === "more" ? <>
+            <View style={styles.actionIcon}><Ionicons name="ellipsis-horizontal" size={25} color="#2F72E8"/></View>
+            <Text style={styles.actionTitle}>Trip options</Text>
+            <Text style={styles.actionBody}>Manage the current trip without using placeholder actions.</Text>
+            <TravaButton label="Manage travelers" iconName="people-outline" tone="blue" onPress={() => { setPanel(null); router.push(`/trip/${tripId}/members` as Href); }}/>
+            <TravaButton label="Open trip overview" iconName="briefcase-outline" tone="blue" onPress={() => { setPanel(null); router.push(`/trip/${tripId}` as Href); }}/>
+            <TravaButton label="Delete this trip" iconName="trash-outline" tone="pink" onPress={() => setPanel("delete")}/>
+          </> : null}
+
+          {panel === "delete" ? <>
+            <View style={styles.actionIconPink}><Ionicons name="trash-outline" size={24} color="#FF3F78"/></View>
+            <Text style={styles.actionTitle}>Delete this trip?</Text>
+            <Text style={styles.actionBody}>This removes the trip through the real trip DELETE endpoint. This action cannot be undone.</Text>
+            {actionError ? <Text style={styles.actionError}>{actionError}</Text> : null}
+            <TravaButton label={deleting ? "Deleting…" : "Delete trip"} iconName="trash-outline" tone="pink" loading={deleting} onPress={() => void confirmDelete()}/>
+            <TravaButton label="Cancel" tone="blue" variant="ghost" onPress={() => setPanel("more")}/>
+          </> : null}
+
+          {panel !== "delete" ? <TravaButton label="Close" tone="blue" variant="ghost" onPress={() => setPanel(null)}/> : null}
+        </View>
+      </View>
+    </Modal>
+  </>;
 }
 
 export function DetailBottomNav() { return <TravaGlassNav placement="floating" />; }
@@ -106,6 +161,14 @@ export function Soft3DIcon({
 export function SectionHeading({ title, sub, action }: { title: string; sub?: string; action?: ReactNode }) { return <View style={styles.sectionHeading}><View><Text style={styles.sectionTitle}>{title}</Text>{sub ? <Text style={styles.sectionSub}>{sub}</Text> : null}</View>{action}</View>; }
 
 const styles = StyleSheet.create({
+  actionBackdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(15,23,42,.28)" },
+  actionSheet: { width: "100%", maxWidth: 460, padding: 22, gap: 12, borderRadius: 28, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E9EDF4", boxShadow: "0 24px 70px rgba(26,38,64,.18)" },
+  actionIcon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", borderWidth: 1.25, borderColor: "#86AEFF", backgroundColor: "#FFFFFF" },
+  actionIconPink: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", borderWidth: 1.25, borderColor: "#FF91AE", backgroundColor: "#FFFFFF" },
+  actionTitle: { color: "#111827", fontSize: 22, lineHeight: 28, fontWeight: "900" },
+  actionBody: { color: "#667085", fontSize: 13, lineHeight: 20, fontWeight: "600", marginBottom: 4 },
+  actionError: { color: "#C43D5A", fontSize: 12, lineHeight: 18, fontWeight: "700" },
+
   screen: { flex: 1, backgroundColor: "#FFFFFF" },
   status: { height: 30, paddingHorizontal: 24, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   statusTime: { color: PX.ink, fontSize: 15, fontWeight: "900" },
