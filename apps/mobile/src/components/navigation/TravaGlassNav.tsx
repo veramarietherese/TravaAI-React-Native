@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   },
   blur: { borderRadius: 46, overflow: "hidden" },
   frost: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 46,
     backgroundColor: "rgba(255,255,255,.22)",
   },
