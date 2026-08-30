@@ -7,7 +7,7 @@ export default function TravelerTabsLayout() {
   return (
     <Tabs
       initialRouteName="home"
-      tabBar={() => <TravaGlassNav placement="tabbar" />}
+      tabBar={() => <TravaGlassNav placement="floating" />}
       screenOptions={{
         headerShown: false,
         animation: "none",
